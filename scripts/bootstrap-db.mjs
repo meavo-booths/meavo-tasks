@@ -13,10 +13,21 @@ function hasDatabaseUrl() {
 }
 
 async function applySqlMigration() {
-  const sqlPath = join(
-    root,
-    "node_modules/@meavo/db/scripts/add-task-tables.sql"
-  );
+  const candidates = [
+    join(root, "scripts/add-task-tables.sql"),
+    join(root, "node_modules/@meavo/db/scripts/add-task-tables.sql"),
+  ];
+  const sqlPath = candidates.find((p) => {
+    try {
+      readFileSync(p);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  if (!sqlPath) {
+    throw new Error("add-task-tables.sql not found");
+  }
   const sql = readFileSync(sqlPath, "utf8");
   execSync("npx prisma db execute --stdin --schema node_modules/@meavo/db/prisma/schema.prisma", {
     cwd: root,
