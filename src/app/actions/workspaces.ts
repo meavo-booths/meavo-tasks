@@ -243,3 +243,15 @@ export async function getWorkspaceAssigneeOptions(workspaceId: string) {
     (a.name ?? a.email).localeCompare(b.name ?? b.email)
   );
 }
+
+export async function getExternalAssigneeCandidates(workspaceId: string) {
+  const auth = await requireUser();
+  if ("error" in auth) return [];
+
+  const [boardMembers, allUsers] = await Promise.all([
+    getWorkspaceAssigneeOptions(workspaceId),
+    getAllUsers(),
+  ]);
+  const boardIds = new Set(boardMembers.map((u) => u.id));
+  return allUsers.filter((user) => !boardIds.has(user.id));
+}

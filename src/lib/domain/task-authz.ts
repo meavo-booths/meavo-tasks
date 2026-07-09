@@ -1,5 +1,6 @@
 import {
   SystemRole,
+  TaskAssigneeScope,
   TaskWorkspaceRole,
   TaskWorkspaceType,
 } from "@prisma/client";
@@ -9,6 +10,12 @@ export type WorkspaceAccess = {
   canView: boolean;
   canEdit: boolean;
   role: "owner" | "editor" | "viewer" | "team_member" | null;
+};
+
+export type TaskAccess = {
+  canView: boolean;
+  canEdit: boolean;
+  isExternalOnly: boolean;
 };
 
 export async function getWorkspaceAccess(
@@ -59,6 +66,45 @@ export async function getWorkspaceAccess(
   return { canView: false, canEdit: false, role: null };
 }
 
+export async function getTaskAccess(
+  userId: string,
+  taskId: string,
+  systemRole?: SystemRole
+): Promise<TaskAccess> {
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: {
+      assignees: {
+        where: { userId },
+        select: { scope: true },
+      },
+    },
+  });
+  if (!task) return { canView: false, canEdit: false, isExternalOnly: false };
+
+  const workspaceAccess = await getWorkspaceAccess(
+    userId,
+    task.workspaceId,
+    systemRole
+  );
+  if (workspaceAccess.canView) {
+    return {
+      canView: true,
+      canEdit: workspaceAccess.canEdit,
+      isExternalOnly: false,
+    };
+  }
+
+  const external = task.assignees.some(
+    (a) => a.scope === TaskAssigneeScope.EXTERNAL
+  );
+  if (external) {
+    return { canView: true, canEdit: false, isExternalOnly: true };
+  }
+
+  return { canView: false, canEdit: false, isExternalOnly: false };
+}
+
 export async function requireWorkspaceEdit(
   userId: string,
   workspaceId: string,
@@ -76,5 +122,15 @@ export async function requireWorkspaceView(
 ) {
   const access = await getWorkspaceAccess(userId, workspaceId, systemRole);
   if (!access.canView) throw new Error("Forbidden");
+  return access;
+}
+
+export async function requireTaskEdit(
+  userId: string,
+  taskId: string,
+  systemRole?: SystemRole
+) {
+  const access = await getTaskAccess(userId, taskId, systemRole);
+  if (!access.canEdit) throw new Error("Forbidden");
   return access;
 }

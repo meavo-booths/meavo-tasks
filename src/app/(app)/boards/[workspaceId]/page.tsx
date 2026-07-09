@@ -1,5 +1,8 @@
 import { notFound, redirect } from "next/navigation";
-import { getAllUsers, getWorkspaceAssigneeOptions } from "@/app/actions/workspaces";
+import {
+  getExternalAssigneeCandidates,
+  getWorkspaceAssigneeOptions,
+} from "@/app/actions/workspaces";
 import { BoardPageClient } from "@/components/board-page-client";
 import { ViewSwitcher } from "@/components/view-switcher";
 import { InviteMemberForm } from "@/components/invite-member-form";
@@ -28,13 +31,17 @@ export default async function BoardPage({
   );
   if (!workspaceAccess.canView) notFound();
 
-  const [workspace, users, defaultColumnId, assigneeOptions] = await Promise.all([
+  const [workspace, defaultColumnId, assigneeOptions] = await Promise.all([
     getWorkspaceBoard(workspaceId),
-    getAllUsers(),
     getDefaultColumnId(workspaceId),
     getWorkspaceAssigneeOptions(workspaceId),
   ]);
   if (!workspace) notFound();
+
+  const externalCandidateUsers =
+    workspace.type === TaskWorkspaceType.SHARED && workspaceAccess.canEdit
+      ? await getExternalAssigneeCandidates(workspaceId)
+      : [];
 
   const columns = workspace.columns.map((col) => ({
     id: col.id,
@@ -65,11 +72,13 @@ export default async function BoardPage({
 
       <BoardPageClient
         workspaceId={workspaceId}
+        workspaceType={workspace.type}
         columns={columns}
-        users={users}
+        users={assigneeOptions}
         canEdit={workspaceAccess.canEdit}
         defaultColumnId={defaultColumnId ?? undefined}
         assigneeOptions={assigneeOptions}
+        externalCandidateUsers={externalCandidateUsers}
         currentUserId={access.user.id}
       />
     </>

@@ -1,5 +1,6 @@
 "use client";
 
+import { TaskWorkspaceType } from "@prisma/client";
 import { useState } from "react";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { TaskListRow } from "@/components/task-list-row";
@@ -29,12 +30,20 @@ export function TaskListView({
   users,
   canEdit,
   onTaskClick,
+  workspaceType,
+  boardMemberUsers,
+  externalCandidateUsers,
+  currentUserId,
 }: {
   tasks: TaskWithRelations[];
   columns: { id: string; name: string }[];
   users: UserOption[];
   canEdit: boolean;
   onTaskClick?: (taskId: string) => void;
+  workspaceType?: TaskWorkspaceType;
+  boardMemberUsers?: UserOption[];
+  externalCandidateUsers?: UserOption[];
+  currentUserId?: string;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const groups = groupTasksByDueDate(tasks.filter(Boolean) as TaskWithRelations[]);
@@ -91,6 +100,10 @@ export function TaskListView({
           open={!!selectedId}
           onClose={() => setSelectedId(null)}
           canEdit={canEdit}
+          workspaceType={workspaceType}
+          boardMemberUsers={boardMemberUsers}
+          externalCandidateUsers={externalCandidateUsers}
+          currentUserId={currentUserId}
         />
       )}
     </>

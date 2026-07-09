@@ -1,5 +1,8 @@
 import { notFound, redirect } from "next/navigation";
-import { getAllUsers, getWorkspaceAssigneeOptions } from "@/app/actions/workspaces";
+import {
+  getExternalAssigneeCandidates,
+  getWorkspaceAssigneeOptions,
+} from "@/app/actions/workspaces";
 import { QuickAddTask } from "@/components/quick-add-task";
 import { TaskListView } from "@/components/task-list-view";
 import { ViewSwitcher } from "@/components/view-switcher";
@@ -28,7 +31,7 @@ export default async function BoardListPage({
   );
   if (!workspaceAccess.canView) notFound();
 
-  const [workspace, tasks, users, assigneeOptions] = await Promise.all([
+  const [workspace, tasks, assigneeOptions] = await Promise.all([
     prisma.taskWorkspace.findUnique({
       where: { id: workspaceId },
       include: {
@@ -37,10 +40,14 @@ export default async function BoardListPage({
       },
     }),
     getWorkspaceOpenTasks(workspaceId),
-    getAllUsers(),
     getWorkspaceAssigneeOptions(workspaceId),
   ]);
   if (!workspace) notFound();
+
+  const externalCandidateUsers =
+    workspace.type === TaskWorkspaceType.SHARED && workspaceAccess.canEdit
+      ? await getExternalAssigneeCandidates(workspaceId)
+      : [];
 
   return (
     <>
@@ -69,8 +76,12 @@ export default async function BoardListPage({
       <TaskListView
         tasks={tasks}
         columns={workspace.columns}
-        users={users}
+        users={assigneeOptions}
         canEdit={workspaceAccess.canEdit}
+        workspaceType={workspace.type}
+        boardMemberUsers={assigneeOptions}
+        externalCandidateUsers={externalCandidateUsers}
+        currentUserId={access.user.id}
       />
     </>
   );

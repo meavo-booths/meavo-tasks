@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui";
 import { getTasksUser } from "@/lib/access";
 import {
   getBoardDashboardSummaries,
+  getExternallySharedTasks,
   getPersonalInboxTasks,
   getSharedUpcomingTasks,
 } from "@/lib/domain/task-queries";
@@ -17,12 +18,14 @@ export default async function InboxPage() {
   if (!access.ok) redirect("/login");
 
   const workspace = await ensurePersonalWorkspace(access.user.id);
-  const [personalTasks, boardSummaries, sharedUpcoming, users] = await Promise.all([
-    getPersonalInboxTasks(access.user.id),
-    getBoardDashboardSummaries(access.user.id, access.user.systemRole),
-    getSharedUpcomingTasks(access.user.id, access.user.systemRole),
-    getAllUsers(),
-  ]);
+  const [personalTasks, boardSummaries, sharedUpcoming, externalShared, users] =
+    await Promise.all([
+      getPersonalInboxTasks(access.user.id),
+      getBoardDashboardSummaries(access.user.id, access.user.systemRole),
+      getSharedUpcomingTasks(access.user.id, access.user.systemRole),
+      getExternallySharedTasks(access.user.id),
+      getAllUsers(),
+    ]);
 
   return (
     <>
@@ -35,11 +38,13 @@ export default async function InboxPage() {
         personalTasks={personalTasks}
         boardSummaries={boardSummaries}
         sharedUpcoming={sharedUpcoming}
+        externalShared={externalShared}
         users={users}
         personalColumns={workspace.columns.map((col) => ({
           id: col.id,
           name: col.name,
         }))}
+        currentUserId={access.user.id}
       />
     </>
   );

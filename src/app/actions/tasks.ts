@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { TaskStatus } from "@prisma/client";
+import { TaskAssigneeScope, TaskStatus } from "@prisma/client";
 import { getTasksUser } from "@/lib/access";
 import { requireWorkspaceEdit } from "@/lib/domain/task-authz";
 import {
@@ -11,7 +11,11 @@ import {
   parsePriority,
 } from "@/lib/domain/task-queries";
 import { getDefaultColumnId } from "@/lib/domain/workspace-bootstrap";
-import { getWorkspaceAssigneeOptions } from "@/app/actions/workspaces";
+import { getWorkspaceBoardMemberIds } from "@/lib/domain/workspace-members";
+import {
+  getExternalAssigneeCandidates,
+  getWorkspaceAssigneeOptions,
+} from "@/app/actions/workspaces";
 import { prisma } from "@/lib/prisma";
 
 export type ActionResult = { error?: string; taskId?: string };
@@ -94,7 +98,10 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
       createdById: auth.user.id,
       position: (maxPosition._max.position ?? -1) + 1,
       assignees: {
-        create: assigneeIds.map((userId) => ({ userId })),
+        create: assigneeIds.map((userId) => ({
+          userId,
+          scope: TaskAssigneeScope.MEMBER,
+        })),
       },
     },
   });
@@ -283,7 +290,7 @@ export async function moveTask(input: {
   return {};
 }
 
-export async function setTaskAssignees(
+export async function setTaskMemberAssignees(
   taskId: string,
   userIds: string[]
 ): Promise<ActionResult> {
@@ -303,14 +310,21 @@ export async function setTaskAssignees(
     return { error: "You do not have permission to assign this task." };
   }
 
-  const uniqueIds = [...new Set(userIds.filter(Boolean))];
+  const boardMemberIds = await getWorkspaceBoardMemberIds(task.workspaceId);
+  const uniqueIds = [...new Set(userIds.filter((id) => boardMemberIds.has(id)))];
 
   await prisma.$transaction([
-    prisma.taskAssignee.deleteMany({ where: { taskId } }),
+    prisma.taskAssignee.deleteMany({
+      where: { taskId, scope: TaskAssigneeScope.MEMBER },
+    }),
     ...(uniqueIds.length > 0
       ? [
           prisma.taskAssignee.createMany({
-            data: uniqueIds.map((userId) => ({ taskId, userId })),
+            data: uniqueIds.map((userId) => ({
+              taskId,
+              userId,
+              scope: TaskAssigneeScope.MEMBER,
+            })),
           }),
         ]
       : []),
@@ -322,9 +336,9 @@ export async function setTaskAssignees(
   return {};
 }
 
-export async function addTaskAssignee(
+export async function setTaskExternalAssignees(
   taskId: string,
-  userId: string
+  userIds: string[]
 ): Promise<ActionResult> {
   const auth = await requireUser();
   if ("error" in auth) return { error: auth.error };
@@ -342,10 +356,86 @@ export async function addTaskAssignee(
     return { error: "You do not have permission to assign this task." };
   }
 
-  const existing = task.assignees.map((a) => a.userId);
-  if (existing.includes(userId)) return {};
+  const boardMemberIds = await getWorkspaceBoardMemberIds(task.workspaceId);
+  const uniqueIds = [
+    ...new Set(userIds.filter((id) => id && !boardMemberIds.has(id))),
+  ];
 
-  return setTaskAssignees(taskId, [...existing, userId]);
+  await prisma.$transaction([
+    prisma.taskAssignee.deleteMany({
+      where: { taskId, scope: TaskAssigneeScope.EXTERNAL },
+    }),
+    ...(uniqueIds.length > 0
+      ? [
+          prisma.taskAssignee.createMany({
+            data: uniqueIds.map((userId) => ({
+              taskId,
+              userId,
+              scope: TaskAssigneeScope.EXTERNAL,
+            })),
+          }),
+        ]
+      : []),
+  ]);
+
+  revalidatePath("/");
+  revalidatePath(`/boards/${task.workspaceId}`);
+  revalidatePath(`/boards/${task.workspaceId}/list`);
+  return {};
+}
+
+/** @deprecated Use setTaskMemberAssignees / setTaskExternalAssignees */
+export async function setTaskAssignees(
+  taskId: string,
+  userIds: string[]
+): Promise<ActionResult> {
+  return setTaskMemberAssignees(taskId, userIds);
+}
+
+export async function addTaskAssignee(
+  taskId: string,
+  userId: string,
+  scope: TaskAssigneeScope = TaskAssigneeScope.MEMBER
+): Promise<ActionResult> {
+  const auth = await requireUser();
+  if ("error" in auth) return { error: auth.error };
+
+  const task = await getTaskById(taskId);
+  if (!task) return { error: "Task not found." };
+
+  try {
+    await requireWorkspaceEdit(
+      auth.user.id,
+      task.workspaceId,
+      auth.user.systemRole
+    );
+  } catch {
+    return { error: "You do not have permission to assign this task." };
+  }
+
+  const boardMemberIds = await getWorkspaceBoardMemberIds(task.workspaceId);
+  if (scope === TaskAssigneeScope.MEMBER && !boardMemberIds.has(userId)) {
+    return { error: "Only board members can be assigned as owners." };
+  }
+  if (scope === TaskAssigneeScope.EXTERNAL && boardMemberIds.has(userId)) {
+    return { error: "Board members should be assigned as owners, not external." };
+  }
+
+  const existing = task.assignees.find((a) => a.userId === userId);
+  if (existing?.scope === scope) return {};
+
+  await prisma.taskAssignee.upsert({
+    where: {
+      taskId_userId: { taskId, userId },
+    },
+    create: { taskId, userId, scope },
+    update: { scope },
+  });
+
+  revalidatePath("/");
+  revalidatePath(`/boards/${task.workspaceId}`);
+  revalidatePath(`/boards/${task.workspaceId}/list`);
+  return {};
 }
 
 export async function removeTaskAssignee(
@@ -368,11 +458,12 @@ export async function removeTaskAssignee(
     return { error: "You do not have permission to assign this task." };
   }
 
-  const existing = task.assignees.map((a) => a.userId);
-  return setTaskAssignees(
-    taskId,
-    existing.filter((id) => id !== userId)
-  );
+  await prisma.taskAssignee.deleteMany({ where: { taskId, userId } });
+
+  revalidatePath("/");
+  revalidatePath(`/boards/${task.workspaceId}`);
+  revalidatePath(`/boards/${task.workspaceId}/list`);
+  return {};
 }
 
 export async function getTaskForModal(taskId: string) {

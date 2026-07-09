@@ -1,5 +1,6 @@
 "use client";
 
+import { TaskWorkspaceType } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AssigneePalette } from "@/components/assignee-palette";
@@ -18,19 +19,23 @@ type UserOption = { id: string; name: string | null; email: string };
 
 export function BoardPageClient({
   workspaceId,
+  workspaceType,
   columns,
   users,
   canEdit,
   defaultColumnId,
   assigneeOptions,
+  externalCandidateUsers,
   currentUserId,
 }: {
   workspaceId: string;
+  workspaceType: TaskWorkspaceType;
   columns: ColumnData[];
   users: UserOption[];
   canEdit: boolean;
   defaultColumnId?: string;
   assigneeOptions?: UserOption[];
+  externalCandidateUsers?: UserOption[];
   currentUserId?: string;
 }) {
   const router = useRouter();
@@ -71,6 +76,10 @@ export function BoardPageClient({
           router.refresh();
         }}
         canEdit={canEdit}
+        workspaceType={workspaceType}
+        boardMemberUsers={assigneeOptions}
+        externalCandidateUsers={externalCandidateUsers}
+        currentUserId={currentUserId}
       />
     </>
   );

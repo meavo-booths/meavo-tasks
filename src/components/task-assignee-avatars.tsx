@@ -15,12 +15,14 @@ export function TaskAssigneeAvatars({
   onRemove,
   size = "xs",
   showMissingWarning = true,
+  variant = "member",
 }: {
   assignees: Assignee[];
   canEdit?: boolean;
   onRemove?: (userId: string) => void;
   size?: "xs" | "sm" | "md";
   showMissingWarning?: boolean;
+  variant?: "member" | "external";
 }) {
   if (assignees.length === 0) {
     if (!showMissingWarning) return null;
@@ -35,9 +37,12 @@ export function TaskAssigneeAvatars({
   }
 
   return (
-    <div className="flex -space-x-1.5">
+    <div className={`flex -space-x-1.5 ${variant === "external" ? "opacity-90" : ""}`}>
       {assignees.map((user) => (
-        <div key={user.userId} className="group relative">
+        <div
+          key={user.userId}
+          className={`group relative ${variant === "external" ? "rounded-full ring-1 ring-dashed ring-slate-300" : ""}`}
+        >
           <UserAvatar
             userId={user.userId}
             name={user.name}

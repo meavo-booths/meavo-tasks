@@ -6,7 +6,7 @@ import {
 } from "@prisma/client";
 import { addDays, isBefore, isSameDay, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
-import { getWorkspaceAccess } from "@/lib/domain/task-authz";
+import { getWorkspaceAccess, getTaskAccess } from "@/lib/domain/task-authz";
 import { sortTasksForPreview } from "@/lib/task-sort";
 
 const UPCOMING_DAYS = 3;
@@ -258,8 +258,22 @@ export async function getSharedUpcomingTasks(
     where: {
       workspaceId: { in: boardIds },
       status: TaskStatus.OPEN,
-      assignees: { some: { userId } },
+      assignees: { some: { userId, scope: "MEMBER" } },
       dueDate: { gte: today, lte: horizon },
+    },
+    orderBy: [{ dueDate: "asc" }, { position: "asc" }],
+    include: {
+      ...taskInclude,
+      workspace: { select: { id: true, name: true, type: true } },
+    },
+  });
+}
+
+export async function getExternallySharedTasks(userId: string) {
+  return prisma.task.findMany({
+    where: {
+      status: TaskStatus.OPEN,
+      assignees: { some: { userId, scope: "EXTERNAL" } },
     },
     orderBy: [{ dueDate: "asc" }, { position: "asc" }],
     include: {
@@ -295,12 +309,7 @@ export async function canAccessTask(
   taskId: string,
   systemRole?: SystemRole
 ) {
-  const task = await prisma.task.findUnique({
-    where: { id: taskId },
-    select: { workspaceId: true },
-  });
-  if (!task) return false;
-  const access = await getWorkspaceAccess(userId, task.workspaceId, systemRole);
+  const access = await getTaskAccess(userId, taskId, systemRole);
   return access.canView;
 }
 

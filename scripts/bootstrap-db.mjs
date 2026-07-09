@@ -12,10 +12,10 @@ function hasDatabaseUrl() {
   return url.startsWith("postgresql://") || url.startsWith("postgres://");
 }
 
-async function applySqlMigration() {
+async function applySqlFile(relativePath) {
   const candidates = [
-    join(root, "scripts/add-task-tables.sql"),
-    join(root, "node_modules/@meavo/db/scripts/add-task-tables.sql"),
+    join(root, relativePath),
+    join(root, "node_modules/@meavo/db", relativePath.replace(/^scripts\//, "scripts/")),
   ];
   const sqlPath = candidates.find((p) => {
     try {
@@ -26,7 +26,7 @@ async function applySqlMigration() {
     }
   });
   if (!sqlPath) {
-    throw new Error("add-task-tables.sql not found");
+    throw new Error(`${relativePath} not found`);
   }
   const sql = readFileSync(sqlPath, "utf8");
   execSync("npx prisma db execute --stdin --schema node_modules/@meavo/db/prisma/schema.prisma", {
@@ -34,6 +34,26 @@ async function applySqlMigration() {
     input: sql,
     stdio: ["pipe", "inherit", "inherit"],
   });
+}
+
+async function applySqlMigration() {
+  await applySqlFile("scripts/add-task-tables.sql");
+}
+
+async function applyAssigneeScopeMigration(prisma) {
+  const existing = await prisma.$queryRaw`
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'TaskAssignee'
+      AND column_name = 'scope'
+    LIMIT 1
+  `;
+  if (Array.isArray(existing) && existing.length > 0) {
+    console.log("bootstrap-db: TaskAssignee.scope already present.");
+    return;
+  }
+  console.log("bootstrap-db: applying task assignee scope migration…");
+  await applySqlFile("scripts/add-task-assignee-scope.sql");
 }
 
 async function seedToolCardAndAccess(prisma) {
@@ -96,6 +116,8 @@ async function main() {
     } else {
       console.log("bootstrap-db: task tables already present.");
     }
+
+    await applyAssigneeScopeMigration(prisma);
 
     console.log("bootstrap-db: seeding tool card and granting team access…");
     await seedToolCardAndAccess(prisma);

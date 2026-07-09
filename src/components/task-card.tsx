@@ -5,6 +5,7 @@ import { PriorityBadge } from "@/components/priority-badge";
 import { DueDateBadge } from "@/components/due-date-badge";
 import { ASSIGNEE_DRAG_TYPE, IconGrip, TASK_DRAG_TYPE } from "@/components/icons";
 import { TaskAssigneeAvatars } from "@/components/task-assignee-avatars";
+import { memberAssignees, externalAssignees } from "@/lib/task-assignees";
 import { PRIORITY_COLORS } from "@/lib/dates";
 import type { TaskWithRelations } from "@/lib/domain/task-queries";
 
@@ -28,6 +29,9 @@ export function TaskCard({
   const [dragOver, setDragOver] = useState(false);
 
   if (!task) return null;
+
+  const memberUsers = memberAssignees(task);
+  const externalUsers = externalAssignees(task);
 
   function handleDragStart(e: React.DragEvent) {
     e.dataTransfer.setData(TASK_DRAG_TYPE, task.id);
@@ -89,20 +93,34 @@ export function TaskCard({
             ) : (
               <span />
             )}
-            <TaskAssigneeAvatars
-              assignees={task.assignees.map((a) => ({
-                userId: a.userId,
-                name: a.user.name,
-                email: a.user.email,
-              }))}
-              canEdit={canEdit}
-              onRemove={
-                onRemoveAssignee
-                  ? (userId) => onRemoveAssignee(task.id, userId)
-                  : undefined
-              }
-              size="xs"
-            />
+            <div className="flex items-center gap-1">
+              <TaskAssigneeAvatars
+                assignees={memberUsers.map((a) => ({
+                  userId: a.userId,
+                  name: a.user.name,
+                  email: a.user.email,
+                }))}
+                canEdit={canEdit}
+                onRemove={
+                  onRemoveAssignee
+                    ? (userId) => onRemoveAssignee(task.id, userId)
+                    : undefined
+                }
+                size="xs"
+              />
+              {externalUsers.length > 0 && (
+                <TaskAssigneeAvatars
+                  assignees={externalUsers.map((a) => ({
+                    userId: a.userId,
+                    name: a.user.name,
+                    email: a.user.email,
+                  }))}
+                  size="xs"
+                  showMissingWarning={false}
+                  variant="external"
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>

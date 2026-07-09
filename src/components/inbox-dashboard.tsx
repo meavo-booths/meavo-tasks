@@ -160,20 +160,70 @@ function SharedUpcomingSection({
   );
 }
 
+function ExternalSharedSection({
+  tasks,
+  onTaskClick,
+}: {
+  tasks: SharedTask[];
+  onTaskClick: (taskId: string) => void;
+}) {
+  if (tasks.length === 0) return null;
+
+  return (
+    <section className="mb-10">
+      <SectionHeader
+        title="Shared with you"
+        description="Individual tasks shared with you — not full board access."
+        icon={<IconInbox size={18} />}
+      />
+      <div className="space-y-2">
+        {tasks.map((task) => (
+          <button
+            key={task.id}
+            type="button"
+            onClick={() => onTaskClick(task.id)}
+            className="flex w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-3 text-left shadow-sm transition hover:border-slate-400 hover:shadow-card"
+          >
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-slate-300" />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-medium text-slate-900">{task.title}</p>
+                <PriorityBadge priority={task.priority} />
+              </div>
+              <p className="mt-0.5 text-xs text-slate-500">
+                {task.workspace.name} · task only
+              </p>
+            </div>
+            {task.dueDate && (
+              <span className="shrink-0 text-xs text-slate-500">
+                {format(task.dueDate, "EEE, MMM d")}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function InboxDashboard({
   personalWorkspaceId,
   personalTasks,
   boardSummaries,
   sharedUpcoming,
+  externalShared,
   users,
   personalColumns,
+  currentUserId,
 }: {
   personalWorkspaceId: string;
   personalTasks: TaskWithRelations[];
   boardSummaries: BoardDashboardSummary[];
   sharedUpcoming: SharedTask[];
+  externalShared: SharedTask[];
   users: UserOption[];
   personalColumns: { id: string; name: string }[];
+  currentUserId: string;
 }) {
   const [expandedBoards, setExpandedBoards] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -182,6 +232,7 @@ export function InboxDashboard({
     ...personalTasks,
     ...boardSummaries.flatMap((b) => b.tasks),
     ...sharedUpcoming,
+    ...externalShared,
   ];
   const selectedTask = allTasks.find((t) => t?.id === selectedId) ?? null;
 
@@ -191,9 +242,21 @@ export function InboxDashboard({
     return board?.columns.length ? board.columns : personalColumns;
   })();
 
+  const modalWorkspaceType = (() => {
+    if (!selectedTask) return undefined;
+    const external = externalShared.find((t) => t.id === selectedTask.id);
+    if (external) return external.workspace.type;
+    const shared = sharedUpcoming.find((t) => t.id === selectedTask.id);
+    if (shared) return shared.workspace.type;
+    const board = boardSummaries.find((b) => b.id === selectedTask.workspaceId);
+    if (board) return board.type;
+    return TaskWorkspaceType.PERSONAL;
+  })();
+
   const stats = {
     personal: personalTasks.length,
     upcoming: sharedUpcoming.length,
+    external: externalShared.length,
     boards: boardSummaries.length,
     urgent: boardSummaries.reduce((sum, b) => sum + b.urgentCount, 0),
   };
@@ -209,12 +272,15 @@ export function InboxDashboard({
 
   return (
     <>
-      <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Personal tasks" value={stats.personal} />
         <StatCard label="Board deadlines" value={stats.upcoming} tone="warning" />
+        <StatCard label="Shared task-only" value={stats.external} tone="brand" />
         <StatCard label="Active boards" value={stats.boards} tone="brand" />
         <StatCard label="Urgent / high" value={stats.urgent} tone="danger" />
       </div>
+
+      <ExternalSharedSection tasks={externalShared} onTaskClick={setSelectedId} />
 
       <SharedUpcomingSection tasks={sharedUpcoming} onTaskClick={setSelectedId} />
 
@@ -264,6 +330,8 @@ export function InboxDashboard({
         open={!!selectedId}
         onClose={() => setSelectedId(null)}
         canEdit
+        workspaceType={modalWorkspaceType}
+        currentUserId={currentUserId}
       />
     </>
   );
