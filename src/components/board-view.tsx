@@ -2,7 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { moveTask } from "@/app/actions/tasks";
+import {
+  addTaskAssignee,
+  moveTask,
+  removeTaskAssignee,
+} from "@/app/actions/tasks";
+import { ASSIGNEE_DRAG_TYPE } from "@/components/icons";
 import { TaskCard } from "@/components/task-card";
 import { Badge } from "@/components/ui";
 import type { TaskWithRelations } from "@/lib/domain/task-queries";
@@ -21,25 +26,40 @@ const COLUMN_ACCENTS: Record<string, string> = {
 };
 
 export function BoardView({
-  workspaceId,
   columns,
   onTaskClick,
+  canEdit = false,
 }: {
   workspaceId: string;
   columns: ColumnData[];
   onTaskClick: (taskId: string) => void;
+  canEdit?: boolean;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
 
-  function handleDrop(columnId: string, position: number) {
+  function handleTaskDrop(columnId: string, position: number) {
     if (!dragTaskId) return;
     startTransition(async () => {
       await moveTask({ taskId: dragTaskId, columnId, position });
       setDragTaskId(null);
       setDragOverColumn(null);
+      router.refresh();
+    });
+  }
+
+  function handleAddAssignee(taskId: string, userId: string) {
+    startTransition(async () => {
+      await addTaskAssignee(taskId, userId);
+      router.refresh();
+    });
+  }
+
+  function handleRemoveAssignee(taskId: string, userId: string) {
+    startTransition(async () => {
+      await removeTaskAssignee(taskId, userId);
       router.refresh();
     });
   }
@@ -59,13 +79,15 @@ export function BoardView({
                 : "border-slate-200/80"
             }`}
             onDragOver={(e) => {
+              if (e.dataTransfer.types.includes(ASSIGNEE_DRAG_TYPE)) return;
               e.preventDefault();
               setDragOverColumn(column.id);
             }}
             onDragLeave={() => setDragOverColumn(null)}
             onDrop={(e) => {
+              if (e.dataTransfer.getData(ASSIGNEE_DRAG_TYPE)) return;
               e.preventDefault();
-              handleDrop(column.id, column.tasks.length);
+              handleTaskDrop(column.id, column.tasks.length);
             }}
           >
             <div className="mb-3 flex items-center gap-2 px-1">
@@ -79,9 +101,12 @@ export function BoardView({
                 <TaskCard
                   key={task.id}
                   task={task}
-                  draggable
+                  draggable={canEdit}
                   onDragStart={() => setDragTaskId(task.id)}
                   onClick={() => onTaskClick(task.id)}
+                  canEdit={canEdit}
+                  onAddAssignee={canEdit ? handleAddAssignee : undefined}
+                  onRemoveAssignee={canEdit ? handleRemoveAssignee : undefined}
                 />
               ))}
 
@@ -95,10 +120,14 @@ export function BoardView({
                 className={`h-10 rounded-xl border border-dashed transition ${
                   isDragTarget ? "border-brand-300 bg-brand-50/50" : "border-slate-300/80"
                 }`}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
+                onDragOver={(e) => {
+                  if (e.dataTransfer.types.includes(ASSIGNEE_DRAG_TYPE)) return;
                   e.preventDefault();
-                  handleDrop(column.id, column.tasks.length);
+                }}
+                onDrop={(e) => {
+                  if (e.dataTransfer.getData(ASSIGNEE_DRAG_TYPE)) return;
+                  e.preventDefault();
+                  handleTaskDrop(column.id, column.tasks.length);
                 }}
               />
             </div>

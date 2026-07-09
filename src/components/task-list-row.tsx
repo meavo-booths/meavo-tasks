@@ -1,6 +1,6 @@
 import { PriorityBadge } from "@/components/priority-badge";
 import { DueDateBadge } from "@/components/due-date-badge";
-import { AvatarStack } from "@/components/user-avatar";
+import { TaskAssigneeAvatars } from "@/components/task-assignee-avatars";
 import { PRIORITY_COLORS } from "@/lib/dates";
 import type { TaskWithRelations } from "@/lib/domain/task-queries";
 
@@ -40,12 +40,13 @@ export function TaskListRow({
 
       <div className="flex shrink-0 items-center gap-2">
         {task.dueDate && <DueDateBadge dueDate={task.dueDate} compact />}
-        <AvatarStack
-          users={task.assignees.map((a) => ({
+        <TaskAssigneeAvatars
+          assignees={task.assignees.map((a) => ({
             userId: a.userId,
             name: a.user.name,
             email: a.user.email,
           }))}
+          size="xs"
         />
       </div>
     </button>

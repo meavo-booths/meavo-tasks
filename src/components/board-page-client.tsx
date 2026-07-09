@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { AssigneePalette } from "@/components/assignee-palette";
 import { BoardView } from "@/components/board-view";
 import { QuickAddTask } from "@/components/quick-add-task";
 import { TaskDetailModal } from "@/components/task-detail-modal";
@@ -42,19 +43,23 @@ export function BoardPageClient({
   return (
     <>
       {canEdit && (
-        <div className="mb-6">
+        <div className="mb-6 space-y-3">
           <QuickAddTask
             workspaceId={workspaceId}
             columnId={defaultColumnId}
             assigneeOptions={assigneeOptions}
             currentUserId={currentUserId}
           />
+          {assigneeOptions && assigneeOptions.length > 1 && (
+            <AssigneePalette users={assigneeOptions} />
+          )}
         </div>
       )}
       <BoardView
         workspaceId={workspaceId}
         columns={columns}
         onTaskClick={(id) => setSelectedId(id)}
+        canEdit={canEdit}
       />
       <TaskDetailModal
         task={selectedTask}

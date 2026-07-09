@@ -7,6 +7,7 @@ import {
 import { addDays, isBefore, isSameDay, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceAccess } from "@/lib/domain/task-authz";
+import { sortTasksForPreview } from "@/lib/task-sort";
 
 const UPCOMING_DAYS = 3;
 
@@ -231,7 +232,7 @@ export async function getBoardDashboardSummaries(
       columns: columns
         .filter((col) => col.workspaceId === board.id)
         .map((col) => ({ id: col.id, name: col.name })),
-      tasks: boardTasks,
+      tasks: sortTasksForPreview(boardTasks),
     };
   });
 }

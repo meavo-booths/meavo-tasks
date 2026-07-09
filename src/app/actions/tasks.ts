@@ -322,6 +322,59 @@ export async function setTaskAssignees(
   return {};
 }
 
+export async function addTaskAssignee(
+  taskId: string,
+  userId: string
+): Promise<ActionResult> {
+  const auth = await requireUser();
+  if ("error" in auth) return { error: auth.error };
+
+  const task = await getTaskById(taskId);
+  if (!task) return { error: "Task not found." };
+
+  try {
+    await requireWorkspaceEdit(
+      auth.user.id,
+      task.workspaceId,
+      auth.user.systemRole
+    );
+  } catch {
+    return { error: "You do not have permission to assign this task." };
+  }
+
+  const existing = task.assignees.map((a) => a.userId);
+  if (existing.includes(userId)) return {};
+
+  return setTaskAssignees(taskId, [...existing, userId]);
+}
+
+export async function removeTaskAssignee(
+  taskId: string,
+  userId: string
+): Promise<ActionResult> {
+  const auth = await requireUser();
+  if ("error" in auth) return { error: auth.error };
+
+  const task = await getTaskById(taskId);
+  if (!task) return { error: "Task not found." };
+
+  try {
+    await requireWorkspaceEdit(
+      auth.user.id,
+      task.workspaceId,
+      auth.user.systemRole
+    );
+  } catch {
+    return { error: "You do not have permission to assign this task." };
+  }
+
+  const existing = task.assignees.map((a) => a.userId);
+  return setTaskAssignees(
+    taskId,
+    existing.filter((id) => id !== userId)
+  );
+}
+
 export async function getTaskForModal(taskId: string) {
   const auth = await requireUser();
   if ("error" in auth) return null;

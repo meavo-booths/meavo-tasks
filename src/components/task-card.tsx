@@ -1,7 +1,10 @@
+"use client";
+
+import { useState } from "react";
 import { PriorityBadge } from "@/components/priority-badge";
 import { DueDateBadge } from "@/components/due-date-badge";
-import { IconGrip } from "@/components/icons";
-import { AvatarStack } from "@/components/user-avatar";
+import { ASSIGNEE_DRAG_TYPE, IconGrip, TASK_DRAG_TYPE } from "@/components/icons";
+import { TaskAssigneeAvatars } from "@/components/task-assignee-avatars";
 import { PRIORITY_COLORS } from "@/lib/dates";
 import type { TaskWithRelations } from "@/lib/domain/task-queries";
 
@@ -10,21 +13,64 @@ export function TaskCard({
   onClick,
   draggable,
   onDragStart,
+  canEdit = false,
+  onAddAssignee,
+  onRemoveAssignee,
 }: {
   task: TaskWithRelations;
   onClick?: () => void;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
+  canEdit?: boolean;
+  onAddAssignee?: (taskId: string, userId: string) => void;
+  onRemoveAssignee?: (taskId: string, userId: string) => void;
 }) {
+  const [dragOver, setDragOver] = useState(false);
+
   if (!task) return null;
 
+  function handleDragStart(e: React.DragEvent) {
+    e.dataTransfer.setData(TASK_DRAG_TYPE, task.id);
+    e.dataTransfer.effectAllowed = "move";
+    onDragStart?.(e);
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    if (!canEdit || !e.dataTransfer.types.includes(ASSIGNEE_DRAG_TYPE)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    setDragOver(true);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+    const userId = e.dataTransfer.getData(ASSIGNEE_DRAG_TYPE);
+    if (userId && onAddAssignee) {
+      onAddAssignee(task.id, userId);
+    }
+  }
+
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       draggable={draggable}
-      onDragStart={onDragStart}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={handleDrop}
       onClick={onClick}
-      className={`group w-full rounded-xl border border-slate-200/80 border-l-4 bg-white p-3 text-left shadow-sm transition hover:border-brand-300 hover:shadow-card ${PRIORITY_COLORS[task.priority]} ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
+      className={`group w-full rounded-xl border border-l-4 bg-white p-3 text-left shadow-sm transition hover:border-brand-300 hover:shadow-card ${PRIORITY_COLORS[task.priority]} ${draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${
+        dragOver ? "border-brand-400 bg-brand-50/50 ring-2 ring-brand-100" : "border-slate-200/80"
+      }`}
     >
       <div className="flex items-start gap-2">
         {draggable && (
@@ -43,17 +89,23 @@ export function TaskCard({
             ) : (
               <span />
             )}
-            <AvatarStack
-              users={task.assignees.map((a) => ({
+            <TaskAssigneeAvatars
+              assignees={task.assignees.map((a) => ({
                 userId: a.userId,
                 name: a.user.name,
                 email: a.user.email,
               }))}
+              canEdit={canEdit}
+              onRemove={
+                onRemoveAssignee
+                  ? (userId) => onRemoveAssignee(task.id, userId)
+                  : undefined
+              }
               size="xs"
             />
           </div>
         </div>
       </div>
-    </button>
+    </div>
   );
 }

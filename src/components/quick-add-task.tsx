@@ -88,13 +88,14 @@ export function QuickAddTask({
                 className="border-0 bg-transparent p-0 text-xs focus:outline-none focus:ring-0"
               />
             </label>
+
+            {showAssignees && (
+              <AssigneePicker users={assigneeOptions} currentUserId={currentUserId} />
+            )}
           </div>
         )}
       </div>
 
-      {showAssignees && (
-        <AssigneePicker users={assigneeOptions} currentUserId={currentUserId} />
-      )}
       {state.error && (
         <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>
       )}
