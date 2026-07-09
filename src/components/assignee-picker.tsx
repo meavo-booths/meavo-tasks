@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { IconUsers } from "@/components/icons";
-import { UserAvatar } from "@/components/user-avatar";
-import { userLabel } from "@/lib/user-display";
+import { AssigneeChipPicker } from "@/components/assignee-chip-picker";
 import { Button } from "@/components/ui";
 
 type UserOption = { id: string; name: string | null; email: string };
@@ -29,13 +28,13 @@ export function AssigneePicker({
   }
 
   return (
-    <div>
+    <div className="w-full sm:w-auto">
       <Button
         type="button"
         variant="secondary"
         size="sm"
         onClick={() => setOpen((value) => !value)}
-        className="gap-1.5"
+        className="w-full gap-1.5 sm:w-auto"
       >
         <IconUsers size={14} />
         Assign to
@@ -45,35 +44,8 @@ export function AssigneePicker({
       </Button>
 
       {open && (
-        <div className="mt-2 flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
-          {users.map((user) => {
-            const active = selected.includes(user.id);
-            return (
-              <label
-                key={user.id}
-                className={`flex cursor-pointer items-center gap-2 rounded-xl border px-2.5 py-1.5 text-xs transition ${
-                  active
-                    ? "border-brand-300 bg-white text-slate-900 shadow-sm"
-                    : "border-transparent bg-white/70 text-slate-600 hover:border-slate-200"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  className="sr-only"
-                  checked={active}
-                  onChange={(e) => {
-                    setSelected((prev) =>
-                      e.target.checked
-                        ? [...prev, user.id]
-                        : prev.filter((id) => id !== user.id)
-                    );
-                  }}
-                />
-                <UserAvatar userId={user.id} name={user.name} email={user.email} size="xs" />
-                <span className="font-medium">{userLabel(user.name, user.email)}</span>
-              </label>
-            );
-          })}
+        <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+          <AssigneeChipPicker users={users} selected={selected} onChange={setSelected} />
         </div>
       )}
 

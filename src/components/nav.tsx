@@ -14,10 +14,7 @@ const MEAVO_APP_KEY = isMeavoAppKey(process.env.MEAVO_APP_KEY)
   : "tasks";
 const GATEWAY_URL = resolveGatewayUrl(process.env.GATEWAY_URL);
 
-const links = [
-  { href: "/", label: "My Inbox" },
-  { href: "/boards", label: "Boards" },
-];
+const links = [{ href: "/", label: "Dashboard" }];
 
 export async function Nav() {
   const session = await auth();

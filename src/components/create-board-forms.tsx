@@ -26,7 +26,7 @@ export function CreateBoardForms({
   );
 
   return (
-    <div className="mb-8 grid gap-6 lg:grid-cols-2">
+    <div className="grid gap-4 lg:grid-cols-2">
       {teamsWithoutBoard.length > 0 && (
         <Card>
           <h2 className="text-sm font-semibold text-slate-900">New team board</h2>

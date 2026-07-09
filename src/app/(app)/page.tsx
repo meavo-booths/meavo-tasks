@@ -1,5 +1,10 @@
 import { redirect } from "next/navigation";
-import { getAllUsers } from "@/app/actions/workspaces";
+import {
+  getAllUsers,
+  getExternalAssigneeCandidates,
+  getUserTeams,
+  getWorkspaceAssigneeOptions,
+} from "@/app/actions/workspaces";
 import { InboxDashboard } from "@/components/inbox-dashboard";
 import { PageHeader } from "@/components/ui";
 import { getTasksUser } from "@/lib/access";
@@ -10,28 +15,46 @@ import {
   getSharedUpcomingTasks,
 } from "@/lib/domain/task-queries";
 import { ensurePersonalWorkspace } from "@/lib/domain/workspace-bootstrap";
+import { TaskWorkspaceType } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-export default async function InboxPage() {
+export default async function DashboardPage() {
   const access = await getTasksUser();
   if (!access.ok) redirect("/login");
 
   const workspace = await ensurePersonalWorkspace(access.user.id);
-  const [personalTasks, boardSummaries, sharedUpcoming, externalShared, users] =
+  const [personalTasks, boardSummaries, sharedUpcoming, externalShared, users, teamMemberships] =
     await Promise.all([
       getPersonalInboxTasks(access.user.id),
       getBoardDashboardSummaries(access.user.id, access.user.systemRole),
       getSharedUpcomingTasks(access.user.id, access.user.systemRole),
       getExternallySharedTasks(access.user.id),
       getAllUsers(),
+      getUserTeams(),
     ]);
+
+  const teamsWithoutBoard = teamMemberships.filter(
+    (m) => m.team.taskWorkspaces.length === 0
+  );
+
+  const boardAssigneeEntries = await Promise.all(
+    boardSummaries.map(async (board) => {
+      const members = await getWorkspaceAssigneeOptions(board.id);
+      const external =
+        board.type === TaskWorkspaceType.SHARED
+          ? await getExternalAssigneeCandidates(board.id)
+          : [];
+      return [board.id, { members, external }] as const;
+    })
+  );
+  const boardAssigneeOptions = Object.fromEntries(boardAssigneeEntries);
 
   return (
     <>
       <PageHeader
-        title="My Inbox"
-        description="Your command center — personal tasks, board summaries, and upcoming deadlines."
+        title="Dashboard"
+        description="Your tasks, team boards, and upcoming deadlines in one place."
       />
       <InboxDashboard
         personalWorkspaceId={workspace.id}
@@ -45,6 +68,8 @@ export default async function InboxPage() {
           name: col.name,
         }))}
         currentUserId={access.user.id}
+        teamsWithoutBoard={teamsWithoutBoard}
+        boardAssigneeOptions={boardAssigneeOptions}
       />
     </>
   );

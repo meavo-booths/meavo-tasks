@@ -1,20 +1,32 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { format, isSameDay } from "date-fns";
+import { CreateBoardForms } from "@/components/create-board-forms";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { TaskListRow } from "@/components/task-list-row";
 import { TaskListView } from "@/components/task-list-view";
 import { QuickAddTask } from "@/components/quick-add-task";
 import { PriorityBadge } from "@/components/priority-badge";
 import { DueDateBadge } from "@/components/due-date-badge";
-import { IconBoard, IconChevronDown, IconInbox } from "@/components/icons";
-import { Badge, Card, SectionHeader, StatCard } from "@/components/ui";
+import { IconBoard, IconChevronDown, IconInbox, IconPlus } from "@/components/icons";
+import { Badge, Button, Card, SectionHeader, StatCard } from "@/components/ui";
 import type { BoardDashboardSummary, TaskWithRelations } from "@/lib/domain/task-queries";
 import { TaskWorkspaceType } from "@prisma/client";
 
 type UserOption = { id: string; name: string | null; email: string };
+
+type TeamOption = {
+  team: {
+    id: string;
+    name: string;
+  };
+};
+
+type BoardAssigneeOptions = {
+  members: UserOption[];
+  external: UserOption[];
+};
 
 type SharedTask = TaskWithRelations & {
   workspace: { id: string; name: string; type: TaskWorkspaceType };
@@ -31,12 +43,18 @@ function BoardSummaryCard({
   expanded,
   onToggle,
   onTaskClick,
+  assigneeOptions,
+  currentUserId,
 }: {
   board: BoardDashboardSummary;
   expanded: boolean;
   onToggle: () => void;
   onTaskClick: (taskId: string) => void;
+  assigneeOptions?: BoardAssigneeOptions;
+  currentUserId: string;
 }) {
+  const defaultColumnId = board.columns[0]?.id;
+
   return (
     <Card padding={false} hover className="overflow-hidden">
       <button
@@ -53,15 +71,19 @@ function BoardSummaryCard({
           <p className="mt-1 text-xs text-slate-500">
             {boardTypeLabel(board.type, board.teamName)}
           </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {board.dueTodayCount > 0 && (
-              <Badge tone="danger">{board.dueTodayCount} due today</Badge>
-            )}
-            {board.dueSoonCount > 0 && <Badge tone="warning">{board.dueSoonCount} due soon</Badge>}
-            {board.inProgressCount > 0 && (
-              <Badge tone="brand">{board.inProgressCount} in progress</Badge>
-            )}
-          </div>
+          {!expanded && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {board.dueTodayCount > 0 && (
+                <Badge tone="danger">{board.dueTodayCount} due today</Badge>
+              )}
+              {board.dueSoonCount > 0 && (
+                <Badge tone="warning">{board.dueSoonCount} due soon</Badge>
+              )}
+              {board.inProgressCount > 0 && (
+                <Badge tone="brand">{board.inProgressCount} in progress</Badge>
+              )}
+            </div>
+          )}
           {board.teamColor && (
             <div
               className="mt-3 h-1 w-full max-w-[120px] rounded-full"
@@ -70,7 +92,7 @@ function BoardSummaryCard({
           )}
         </div>
         <span
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition ${expanded ? "rotate-180" : ""}`}
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition ${expanded ? "rotate-180" : ""}`}
         >
           <IconChevronDown size={18} />
         </span>
@@ -78,11 +100,20 @@ function BoardSummaryCard({
 
       {expanded && (
         <div className="border-t border-slate-100 bg-slate-50/60 p-4 sm:p-5">
+          <div className="mb-4">
+            <QuickAddTask
+              workspaceId={board.id}
+              columnId={defaultColumnId}
+              assigneeOptions={assigneeOptions?.members}
+              currentUserId={currentUserId}
+            />
+          </div>
+
           {board.tasks.length === 0 ? (
-            <p className="text-sm text-slate-500">No open tasks on this board.</p>
+            <p className="text-sm text-slate-500">No open tasks on this board yet.</p>
           ) : (
             <div className="space-y-2">
-              {board.tasks.slice(0, 12).map((task) => (
+              {board.tasks.map((task) => (
                 <TaskListRow
                   key={task.id}
                   task={task}
@@ -90,20 +121,8 @@ function BoardSummaryCard({
                   onClick={() => onTaskClick(task.id)}
                 />
               ))}
-              {board.tasks.length > 12 && (
-                <p className="px-1 text-xs text-slate-500">
-                  +{board.tasks.length - 12} more on this board
-                </p>
-              )}
             </div>
           )}
-          <Link
-            href={`/boards/${board.id}`}
-            className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-brand-700 hover:text-brand-800"
-          >
-            Open full board
-            <span aria-hidden>→</span>
-          </Link>
         </div>
       )}
     </Card>
@@ -218,6 +237,8 @@ export function InboxDashboard({
   users,
   personalColumns,
   currentUserId,
+  teamsWithoutBoard,
+  boardAssigneeOptions,
 }: {
   personalWorkspaceId: string;
   personalTasks: TaskWithRelations[];
@@ -227,8 +248,11 @@ export function InboxDashboard({
   users: UserOption[];
   personalColumns: { id: string; name: string }[];
   currentUserId: string;
+  teamsWithoutBoard: TeamOption[];
+  boardAssigneeOptions: Record<string, BoardAssigneeOptions>;
 }) {
   const [expandedBoards, setExpandedBoards] = useState<Set<string>>(new Set());
+  const [showCreateBoard, setShowCreateBoard] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const allTasks = [
@@ -255,6 +279,10 @@ export function InboxDashboard({
     if (board) return board.type;
     return TaskWorkspaceType.PERSONAL;
   })();
+
+  const modalAssignees = selectedTask
+    ? boardAssigneeOptions[selectedTask.workspaceId]
+    : undefined;
 
   const stats = {
     personal: personalTasks.length,
@@ -283,6 +311,67 @@ export function InboxDashboard({
         <StatCard label="Urgent / high" value={stats.urgent} tone="danger" />
       </div>
 
+      <section className="mb-8 sm:mb-10">
+        <SectionHeader
+          title="Boards"
+          description="Team and shared workspaces — tap to expand, add tasks, and assign people."
+          icon={<IconBoard size={18} />}
+          action={
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowCreateBoard((value) => !value)}
+              className="w-full sm:w-auto"
+            >
+              <IconPlus size={14} />
+              {showCreateBoard ? "Hide" : "New board"}
+            </Button>
+          }
+        />
+
+        {showCreateBoard && (
+          <div className="mb-4">
+            <CreateBoardForms teamsWithoutBoard={teamsWithoutBoard} />
+          </div>
+        )}
+
+        {boardSummaries.length === 0 ? (
+          <Card className="text-center">
+            <p className="text-sm font-medium text-slate-700">No boards yet</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Create a team or shared board to collaborate with others.
+            </p>
+            {!showCreateBoard && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="mt-4"
+                onClick={() => setShowCreateBoard(true)}
+              >
+                <IconPlus size={14} />
+                Create a board
+              </Button>
+            )}
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {boardSummaries.map((board) => (
+              <BoardSummaryCard
+                key={board.id}
+                board={board}
+                expanded={expandedBoards.has(board.id)}
+                onToggle={() => toggleBoard(board.id)}
+                onTaskClick={setSelectedId}
+                assigneeOptions={boardAssigneeOptions[board.id]}
+                currentUserId={currentUserId}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
       <ExternalSharedSection tasks={externalShared} onTaskClick={setSelectedId} />
 
       <SharedUpcomingSection tasks={sharedUpcoming} onTaskClick={setSelectedId} />
@@ -294,7 +383,7 @@ export function InboxDashboard({
           icon={<IconInbox size={18} />}
         />
         <div className="mb-4">
-          <QuickAddTask workspaceId={personalWorkspaceId} />
+          <QuickAddTask workspaceId={personalWorkspaceId} currentUserId={currentUserId} />
         </div>
         <TaskListView
           tasks={personalTasks}
@@ -302,29 +391,9 @@ export function InboxDashboard({
           users={users}
           canEdit
           onTaskClick={setSelectedId}
+          currentUserId={currentUserId}
         />
       </section>
-
-      {boardSummaries.length > 0 && (
-        <section>
-          <SectionHeader
-            title="Active boards"
-            description="Click a board to expand and preview its open tasks."
-            icon={<IconBoard size={18} />}
-          />
-          <div className="space-y-3">
-            {boardSummaries.map((board) => (
-              <BoardSummaryCard
-                key={board.id}
-                board={board}
-                expanded={expandedBoards.has(board.id)}
-                onToggle={() => toggleBoard(board.id)}
-                onTaskClick={setSelectedId}
-              />
-            ))}
-          </div>
-        </section>
-      )}
 
       <TaskDetailModal
         task={selectedTask}
@@ -334,6 +403,8 @@ export function InboxDashboard({
         onClose={() => setSelectedId(null)}
         canEdit
         workspaceType={modalWorkspaceType}
+        boardMemberUsers={modalAssignees?.members}
+        externalCandidateUsers={modalAssignees?.external}
         currentUserId={currentUserId}
       />
     </>

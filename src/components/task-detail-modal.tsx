@@ -15,6 +15,7 @@ import {
   getExternalAssigneeCandidates,
   getWorkspaceAssigneeOptions,
 } from "@/app/actions/workspaces";
+import { AssigneeChipPicker } from "@/components/assignee-chip-picker";
 import { LinkEntityPicker } from "@/components/link-entity-picker";
 import { Modal } from "@/components/modal";
 import { PriorityBadge } from "@/components/priority-badge";
@@ -61,8 +62,12 @@ export function TaskDetailModal({
   );
 
   const isSharedBoard = workspaceType === TaskWorkspaceType.SHARED;
+  const isBoardWorkspace =
+    workspaceType === TaskWorkspaceType.TEAM || workspaceType === TaskWorkspaceType.SHARED;
   const memberOptions = boardMemberUsers ?? resolvedMembers;
   const externalOptions = externalCandidateUsers ?? resolvedExternal;
+  const assigneeOptions =
+    isBoardWorkspace && memberOptions.length > 0 ? memberOptions : users;
 
   useEffect(() => {
     if (task) {
@@ -73,21 +78,21 @@ export function TaskDetailModal({
   }, [task]);
 
   useEffect(() => {
-    if (!task || !isSharedBoard || !canEdit) return;
-    if (boardMemberUsers && externalCandidateUsers) return;
+    if (!task || !canEdit || !isBoardWorkspace) return;
+    if (boardMemberUsers && (!isSharedBoard || externalCandidateUsers)) return;
 
     let cancelled = false;
     void Promise.all([
       boardMemberUsers
         ? Promise.resolve(boardMemberUsers)
         : getWorkspaceAssigneeOptions(task.workspaceId),
-      externalCandidateUsers
-        ? Promise.resolve(externalCandidateUsers)
-        : getExternalAssigneeCandidates(task.workspaceId),
+      isSharedBoard && !externalCandidateUsers
+        ? getExternalAssigneeCandidates(task.workspaceId)
+        : Promise.resolve(externalCandidateUsers ?? []),
     ]).then(([members, external]) => {
       if (cancelled) return;
       if (!boardMemberUsers) setResolvedMembers(members);
-      if (!externalCandidateUsers) setResolvedExternal(external);
+      if (isSharedBoard && !externalCandidateUsers) setResolvedExternal(external);
     });
 
     return () => {
@@ -96,6 +101,7 @@ export function TaskDetailModal({
   }, [
     task?.id,
     task?.workspaceId,
+    isBoardWorkspace,
     isSharedBoard,
     canEdit,
     boardMemberUsers,
@@ -114,7 +120,6 @@ export function TaskDetailModal({
 
   const effectiveCanEdit = canEdit && !isExternalViewer;
   const isCompleted = task.status === "COMPLETED";
-  const legacyUsers = users.length > 0 ? users : memberOptions;
 
   function handleUpdate(formData: FormData) {
     startTransition(async () => {
@@ -124,24 +129,21 @@ export function TaskDetailModal({
     });
   }
 
-  function handleMemberAssignees() {
+  function handleMemberChange(ids: string[]) {
+    setSelectedMembers(ids);
     startTransition(async () => {
-      const result = await setTaskMemberAssignees(task!.id, selectedMembers);
+      const result = await setTaskMemberAssignees(task!.id, ids);
       if (result.error) setError(result.error);
+      else setError(null);
     });
   }
 
-  function handleExternalAssignees() {
+  function handleExternalChange(ids: string[]) {
+    setSelectedExternal(ids);
     startTransition(async () => {
-      const result = await setTaskExternalAssignees(task!.id, selectedExternal);
+      const result = await setTaskExternalAssignees(task!.id, ids);
       if (result.error) setError(result.error);
-    });
-  }
-
-  function handleLegacyAssignees() {
-    startTransition(async () => {
-      const result = await setTaskMemberAssignees(task!.id, selectedMembers);
-      if (result.error) setError(result.error);
+      else setError(null);
     });
   }
 
@@ -169,30 +171,23 @@ export function TaskDetailModal({
     if (result.error) setError(result.error);
   }
 
-  function renderAssigneeCheckboxes(
+  function renderEditableAssignees(
     options: UserOption[],
     selected: string[],
-    onChange: (ids: string[]) => void
+    onChange: (ids: string[]) => void,
+    emptyMessage: string
   ) {
     return (
-      <div className="flex flex-wrap gap-2">
-        {options.map((u) => (
-          <label key={u.id} className="flex items-center gap-1.5 text-sm">
-            <input
-              type="checkbox"
-              checked={selected.includes(u.id)}
-              onChange={(e) => {
-                onChange(
-                  e.target.checked
-                    ? [...selected, u.id]
-                    : selected.filter((id) => id !== u.id)
-                );
-              }}
-            />
-            {u.name ?? u.email}
-          </label>
-        ))}
-      </div>
+      <>
+        <AssigneeChipPicker
+          users={options}
+          selected={selected}
+          onChange={onChange}
+          disabled={pending}
+          emptyMessage={emptyMessage}
+        />
+        <p className="mt-2 text-xs text-slate-500">Tap a person to assign or unassign.</p>
+      </>
     );
   }
 
@@ -343,22 +338,12 @@ export function TaskDetailModal({
               Board members who own this task on the shared board.
             </p>
             {effectiveCanEdit ? (
-              <>
-                {renderAssigneeCheckboxes(
-                  memberOptions,
-                  selectedMembers,
-                  setSelectedMembers
-                )}
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="mt-2"
-                  onClick={handleMemberAssignees}
-                  disabled={pending}
-                >
-                  Update assignees
-                </Button>
-              </>
+              renderEditableAssignees(
+                memberOptions,
+                selectedMembers,
+                handleMemberChange,
+                "No board members available."
+              )
             ) : memberAssignees(task).length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {memberAssignees(task).map((a) => (
@@ -388,28 +373,16 @@ export function TaskDetailModal({
                 People outside this board who can view and work on this task only.
               </p>
               {effectiveCanEdit ? (
-                <>
-                  {externalOptions.length === 0 ? (
-                    <p className="text-sm text-slate-500">
-                      No external users available.
-                    </p>
-                  ) : (
-                    renderAssigneeCheckboxes(
-                      externalOptions,
-                      selectedExternal,
-                      setSelectedExternal
-                    )
-                  )}
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="mt-2"
-                    onClick={handleExternalAssignees}
-                    disabled={pending}
-                  >
-                    Update external assignees
-                  </Button>
-                </>
+                externalOptions.length === 0 ? (
+                  <p className="text-sm text-slate-500">No external users available.</p>
+                ) : (
+                  renderEditableAssignees(
+                    externalOptions,
+                    selectedExternal,
+                    handleExternalChange,
+                    "No external users available."
+                  )
+                )
               ) : (
                 externalAssignees(task).length > 0 && (
                   <div className="flex flex-wrap gap-2">
@@ -435,16 +408,12 @@ export function TaskDetailModal({
         ) : effectiveCanEdit ? (
           <>
             <p className="mb-2 text-sm font-medium text-slate-700">Assignees</p>
-            {renderAssigneeCheckboxes(legacyUsers, selectedMembers, setSelectedMembers)}
-            <Button
-              type="button"
-              variant="secondary"
-              className="mt-2"
-              onClick={handleLegacyAssignees}
-              disabled={pending}
-            >
-              Update assignees
-            </Button>
+            {renderEditableAssignees(
+              assigneeOptions,
+              selectedMembers,
+              handleMemberChange,
+              "No people available to assign."
+            )}
           </>
         ) : (
           <>
