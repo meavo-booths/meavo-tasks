@@ -7,8 +7,9 @@ import {
 import { InviteMemberForm } from "@/components/invite-member-form";
 import { QuickAddTask } from "@/components/quick-add-task";
 import { TaskListView } from "@/components/task-list-view";
+import { BoardPageToolbar } from "@/components/board-page-toolbar";
 import { ViewSwitcher } from "@/components/view-switcher";
-import { Card, PageHeader } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { getTasksUser } from "@/lib/access";
 import { getWorkspaceAccess } from "@/lib/domain/task-authz";
 import { getWorkspaceOpenTasks } from "@/lib/domain/task-queries";
@@ -66,26 +67,23 @@ export default async function BoardListPage({
 
   return (
     <>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <PageHeader
-          title={workspace.name}
-          description={
-            workspace.type === TaskWorkspaceType.TEAM
-              ? workspace.team?.name ?? "Team board"
-              : "List view"
-          }
-        />
-        <div className="flex items-center gap-2">
-          {showInvite && (
-            <InviteMemberForm
-              workspaceId={workspaceId}
-              members={workspace.members}
-              teamCandidates={teamInviteCandidates}
-            />
-          )}
-          <ViewSwitcher workspaceId={workspaceId} current="list" />
-        </div>
-      </div>
+      <BoardPageToolbar
+        title={workspace.name}
+        description={
+          workspace.type === TaskWorkspaceType.TEAM
+            ? workspace.team?.name ?? "Team board"
+            : "List view"
+        }
+      >
+        {showInvite && (
+          <InviteMemberForm
+            workspaceId={workspaceId}
+            members={workspace.members}
+            teamCandidates={teamInviteCandidates}
+          />
+        )}
+        <ViewSwitcher workspaceId={workspaceId} current="list" />
+      </BoardPageToolbar>
 
       {workspaceAccess.canEdit && (
         <Card className="mb-6">

@@ -41,24 +41,29 @@ export function Modal({
   return (
     <dialog
       ref={dialogRef}
-      className={`fixed inset-0 z-50 m-auto w-[calc(100%-1.5rem)] max-h-[90vh] rounded-2xl border border-slate-200 bg-white p-0 shadow-modal backdrop:bg-slate-900/50 backdrop:backdrop-blur-sm ${wide ? "max-w-2xl" : "max-w-lg"}`}
+      className={`modal-sheet ${wide ? "modal-sheet--wide" : "modal-sheet--default"}`}
       role="dialog"
       aria-labelledby="modal-title"
     >
-      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-        <h2 id="modal-title" className="pr-4 text-lg font-semibold tracking-tight text-slate-900">
+      <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3.5 sm:px-5 sm:py-4">
+        <h2
+          id="modal-title"
+          className="pr-4 text-base font-semibold tracking-tight text-slate-900 sm:text-lg"
+        >
           {title}
         </h2>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+          className="touch-target -mr-1 flex items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
           aria-label="Close"
         >
           <IconX size={18} />
         </button>
       </div>
-      <div className="max-h-[calc(90vh-4.5rem)] overflow-y-auto px-5 py-5">{children}</div>
+      <div className="max-h-[calc(92dvh-3.75rem)] overflow-y-auto overscroll-contain px-4 py-4 sm:max-h-[calc(90vh-4.5rem)] sm:px-5 sm:py-5">
+        {children}
+      </div>
     </dialog>
   );
 }

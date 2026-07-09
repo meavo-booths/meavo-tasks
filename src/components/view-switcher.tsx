@@ -9,10 +9,10 @@ export function ViewSwitcher({
   current: "board" | "list";
 }) {
   return (
-    <nav className="inline-flex rounded-xl border border-slate-200 bg-slate-100/80 p-1">
+    <nav className="flex w-full rounded-xl border border-slate-200 bg-slate-100/80 p-1 sm:inline-flex sm:w-auto">
       <Link
         href={`/boards/${workspaceId}`}
-        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
+        className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium transition sm:flex-none sm:py-2 ${
           current === "board"
             ? "bg-white text-brand-700 shadow-sm"
             : "text-slate-600 hover:text-slate-900"
@@ -23,7 +23,7 @@ export function ViewSwitcher({
       </Link>
       <Link
         href={`/boards/${workspaceId}/list`}
-        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
+        className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium transition sm:flex-none sm:py-2 ${
           current === "list"
             ? "bg-white text-brand-700 shadow-sm"
             : "text-slate-600 hover:text-slate-900"

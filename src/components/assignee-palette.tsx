@@ -38,7 +38,7 @@ export function AssigneePalette({
           <p className="mb-2 text-xs text-slate-500">
             Drag someone onto a task to assign them as owner.
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1 sm:flex-wrap">
             {users.map((user) => (
               <div
                 key={user.id}

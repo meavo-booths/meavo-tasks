@@ -47,8 +47,8 @@ export function Button({
     ghost: "text-slate-600 hover:bg-slate-100 active:bg-slate-200 focus-visible:ring-slate-200",
   };
   const sizes = {
-    sm: "rounded-lg px-3 py-1.5 text-xs",
-    md: "rounded-xl px-4 py-2.5 text-sm",
+    sm: "rounded-lg px-3 py-2 text-xs min-h-[36px]",
+    md: "rounded-xl px-4 py-2.5 text-sm min-h-[44px]",
   };
 
   return (
@@ -167,20 +167,20 @@ export function PageHeader({
   title,
   description,
   children,
+  className = "",
 }: {
   title: string;
   description?: string;
   children?: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-      <div className="min-w-0">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-          {title}
-        </h1>
-        {description && <p className="mt-1.5 max-w-2xl text-sm text-slate-500 sm:text-base">{description}</p>}
+    <div className={`page-header ${className}`}>
+      <div className="page-header__content">
+        <h1 className="page-header__title">{title}</h1>
+        {description && <p className="page-header__description">{description}</p>}
       </div>
-      {children}
+      {children && <div className="page-header__actions">{children}</div>}
     </div>
   );
 }
@@ -255,9 +255,9 @@ export function StatCard({
   };
 
   return (
-    <div className={`rounded-2xl border px-4 py-3 ${tones[tone]}`}>
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
-      <p className={`mt-1 text-2xl font-semibold tabular-nums ${values[tone]}`}>{value}</p>
+    <div className={`rounded-2xl border px-3 py-2.5 sm:px-4 sm:py-3 ${tones[tone]}`}>
+      <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:text-xs">{label}</p>
+      <p className={`mt-0.5 text-xl font-semibold tabular-nums sm:mt-1 sm:text-2xl ${values[tone]}`}>{value}</p>
     </div>
   );
 }

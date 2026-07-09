@@ -39,18 +39,20 @@ export function QuickAddTask({
       {columnId && <input type="hidden" name="columnId" value={columnId} />}
 
       <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition focus-within:border-brand-300 focus-within:ring-4 focus-within:ring-brand-50 sm:p-4">
-        <div className="flex items-center gap-2">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
-            <IconPlus size={16} />
-          </span>
-          <input
-            name="title"
-            placeholder="What needs to be done?"
-            required
-            className="min-w-0 flex-1 border-0 bg-transparent py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0"
-            onFocus={() => setShowDetails(true)}
-          />
-          <Button type="submit" disabled={pending} size="sm" className="shrink-0">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+              <IconPlus size={16} />
+            </span>
+            <input
+              name="title"
+              placeholder="What needs to be done?"
+              required
+              className="min-w-0 flex-1 border-0 bg-transparent py-2 text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0 sm:text-sm"
+              onFocus={() => setShowDetails(true)}
+            />
+          </div>
+          <Button type="submit" disabled={pending} size="sm" className="w-full shrink-0 sm:w-auto">
             {pending ? "Adding…" : "Add task"}
           </Button>
         </div>
@@ -80,7 +82,7 @@ export function QuickAddTask({
               })}
             </div>
 
-            <label className="ml-auto flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600">
+            <label className="flex w-full items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600 sm:ml-auto sm:w-auto">
               <IconCalendar size={14} />
               <input
                 name="dueDate"

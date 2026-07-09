@@ -308,14 +308,14 @@ export function TaskDetailModal({
               defaultValue={task.dueDate ? task.dueDate.toISOString().slice(0, 10) : ""}
             />
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" disabled={pending}>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <Button type="submit" disabled={pending} className="w-full sm:w-auto">
               Save
             </Button>
-            <Button type="button" variant="secondary" onClick={handleComplete} disabled={pending}>
+            <Button type="button" variant="secondary" onClick={handleComplete} disabled={pending} className="w-full sm:w-auto">
               {isCompleted ? "Reopen" : "Complete"}
             </Button>
-            <Button type="button" variant="danger" onClick={handleDelete} disabled={pending}>
+            <Button type="button" variant="danger" onClick={handleDelete} disabled={pending} className="w-full sm:w-auto">
               Delete
             </Button>
           </div>

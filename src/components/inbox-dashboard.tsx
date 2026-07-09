@@ -122,7 +122,7 @@ function SharedUpcomingSection({
   const today = new Date();
 
   return (
-    <section className="mb-10">
+    <section className="mb-8 sm:mb-10">
       <SectionHeader
         title="Coming up on boards"
         description="Assigned to you — due today or in the next few days."
@@ -134,25 +134,26 @@ function SharedUpcomingSection({
             key={task.id}
             type="button"
             onClick={() => onTaskClick(task.id)}
-            className="flex w-full items-center gap-3 rounded-xl border border-slate-200/80 bg-white px-4 py-3 text-left shadow-sm transition hover:border-slate-300 hover:shadow-card"
+            className="flex w-full flex-col gap-2 rounded-xl border border-slate-200/80 bg-white px-3 py-3 text-left shadow-sm transition hover:border-slate-300 hover:shadow-card sm:flex-row sm:items-center sm:gap-3 sm:px-4"
           >
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-slate-300" />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-medium text-slate-900">{task.title}</p>
-                <PriorityBadge priority={task.priority} />
+            <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-slate-300 sm:mt-0" />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium text-slate-900">{task.title}</p>
+                  <PriorityBadge priority={task.priority} />
+                </div>
+                <p className="mt-0.5 text-xs text-slate-500">{task.workspace.name}</p>
               </div>
-              <p className="mt-0.5 text-xs text-slate-500">{task.workspace.name}</p>
             </div>
-            {task.dueDate && (
-              isSameDay(task.dueDate, today) ? (
+            {task.dueDate &&
+              (isSameDay(task.dueDate, today) ? (
                 <DueDateBadge dueDate={task.dueDate} />
               ) : (
-                <span className="shrink-0 text-xs text-slate-500">
+                <span className="shrink-0 pl-8 text-xs text-slate-500 sm:pl-0">
                   {format(task.dueDate, "EEE, MMM d")}
                 </span>
-              )
-            )}
+              ))}
           </button>
         ))}
       </div>
@@ -170,7 +171,7 @@ function ExternalSharedSection({
   if (tasks.length === 0) return null;
 
   return (
-    <section className="mb-10">
+    <section className="mb-8 sm:mb-10">
       <SectionHeader
         title="Shared with you"
         description="Individual tasks shared with you — not full board access."
@@ -182,20 +183,22 @@ function ExternalSharedSection({
             key={task.id}
             type="button"
             onClick={() => onTaskClick(task.id)}
-            className="flex w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-3 text-left shadow-sm transition hover:border-slate-400 hover:shadow-card"
+            className="flex w-full flex-col gap-2 rounded-xl border border-dashed border-slate-300 bg-white px-3 py-3 text-left shadow-sm transition hover:border-slate-400 hover:shadow-card sm:flex-row sm:items-center sm:gap-3 sm:px-4"
           >
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-slate-300" />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-medium text-slate-900">{task.title}</p>
-                <PriorityBadge priority={task.priority} />
+            <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-slate-300 sm:mt-0" />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium text-slate-900">{task.title}</p>
+                  <PriorityBadge priority={task.priority} />
+                </div>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {task.workspace.name} · task only
+                </p>
               </div>
-              <p className="mt-0.5 text-xs text-slate-500">
-                {task.workspace.name} · task only
-              </p>
             </div>
             {task.dueDate && (
-              <span className="shrink-0 text-xs text-slate-500">
+              <span className="shrink-0 pl-8 text-xs text-slate-500 sm:pl-0">
                 {format(task.dueDate, "EEE, MMM d")}
               </span>
             )}
@@ -272,7 +275,7 @@ export function InboxDashboard({
 
   return (
     <>
-      <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="stat-grid">
         <StatCard label="Personal tasks" value={stats.personal} />
         <StatCard label="Board deadlines" value={stats.upcoming} tone="warning" />
         <StatCard label="Shared task-only" value={stats.external} tone="brand" />
@@ -284,7 +287,7 @@ export function InboxDashboard({
 
       <SharedUpcomingSection tasks={sharedUpcoming} onTaskClick={setSelectedId} />
 
-      <section className="mb-10">
+      <section className="mb-8 sm:mb-10">
         <SectionHeader
           title="My personal tasks"
           description="Private inbox — grouped by due date."

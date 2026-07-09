@@ -5,9 +5,9 @@ import {
   getWorkspaceInviteCandidates,
 } from "@/app/actions/workspaces";
 import { BoardPageClient } from "@/components/board-page-client";
+import { BoardPageToolbar } from "@/components/board-page-toolbar";
 import { ViewSwitcher } from "@/components/view-switcher";
 import { InviteMemberForm } from "@/components/invite-member-form";
-import { PageHeader } from "@/components/ui";
 import { getTasksUser } from "@/lib/access";
 import { getWorkspaceAccess } from "@/lib/domain/task-authz";
 import { getWorkspaceBoard } from "@/lib/domain/task-queries";
@@ -58,28 +58,25 @@ export default async function BoardPage({
 
   return (
     <>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <PageHeader
-          title={workspace.name}
-          description={
-            workspace.type === TaskWorkspaceType.TEAM
-              ? workspace.team?.name ?? "Team board"
-              : workspace.type === TaskWorkspaceType.SHARED
-                ? "Shared board"
-                : "Personal board"
-          }
-        />
-        <div className="flex items-center gap-2">
-          {showInvite && (
-            <InviteMemberForm
-              workspaceId={workspaceId}
-              members={workspace.members}
-              teamCandidates={teamInviteCandidates}
-            />
-          )}
-          <ViewSwitcher workspaceId={workspaceId} current="board" />
-        </div>
-      </div>
+      <BoardPageToolbar
+        title={workspace.name}
+        description={
+          workspace.type === TaskWorkspaceType.TEAM
+            ? workspace.team?.name ?? "Team board"
+            : workspace.type === TaskWorkspaceType.SHARED
+              ? "Shared board"
+              : "Personal board"
+        }
+      >
+        {showInvite && (
+          <InviteMemberForm
+            workspaceId={workspaceId}
+            members={workspace.members}
+            teamCandidates={teamInviteCandidates}
+          />
+        )}
+        <ViewSwitcher workspaceId={workspaceId} current="board" />
+      </BoardPageToolbar>
 
       <BoardPageClient
         workspaceId={workspaceId}
