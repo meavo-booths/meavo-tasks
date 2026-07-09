@@ -3,6 +3,7 @@ import {
   getAccessibleTools,
   isMeavoAppKey,
   resolveCurrentToolId,
+  resolveGatewayUrl,
 } from "@meavo/navigation/server";
 import { signOutAction } from "@/app/actions/auth";
 import { auth } from "@/lib/auth";
@@ -11,7 +12,7 @@ import { prisma } from "@/lib/prisma";
 const MEAVO_APP_KEY = isMeavoAppKey(process.env.MEAVO_APP_KEY)
   ? process.env.MEAVO_APP_KEY
   : "tasks";
-const GATEWAY_URL = process.env.GATEWAY_URL ?? "https://meavo.app";
+const GATEWAY_URL = resolveGatewayUrl(process.env.GATEWAY_URL);
 
 const links = [
   { href: "/", label: "My Inbox" },
