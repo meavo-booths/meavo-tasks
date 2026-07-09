@@ -25,7 +25,7 @@ async function applySqlMigration() {
   });
 }
 
-async function seedToolCardAndAccess(prisma: PrismaClient) {
+async function seedToolCardAndAccess(prisma) {
   const card = await prisma.toolCard.upsert({
     where: { id: "seed-tasks-tool" },
     update: {
