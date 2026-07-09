@@ -45,6 +45,7 @@ export function Modal({
       role="dialog"
       aria-labelledby="modal-title"
     >
+      <div className="modal-sheet__handle" aria-hidden />
       <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3.5 sm:px-5 sm:py-4">
         <h2
           id="modal-title"

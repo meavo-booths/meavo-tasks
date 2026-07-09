@@ -56,18 +56,22 @@
   }
 
   .section-subtitle {
-    @apply mt-0.5 text-sm text-slate-500;
+    @apply mt-0.5 hidden text-sm text-slate-500 sm:block;
+  }
+
+  .mobile-only-hint {
+    @apply mb-3 rounded-xl border border-brand-100 bg-brand-50/60 px-3 py-2 text-xs text-brand-700 md:hidden;
   }
 
   .app-container {
-    @apply mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-8 lg:py-10;
-    padding-left: max(1rem, var(--safe-left));
-    padding-right: max(1rem, var(--safe-right));
-    padding-bottom: max(1.25rem, var(--safe-bottom));
+    @apply mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 sm:py-8 lg:py-10;
+    padding-left: max(0.75rem, var(--safe-left));
+    padding-right: max(0.75rem, var(--safe-right));
+    padding-bottom: max(1rem, var(--safe-bottom));
   }
 
   .page-header {
-    @apply mb-6 flex flex-col gap-4 sm:mb-8 md:flex-row md:items-start md:justify-between;
+    @apply mb-5 flex flex-col gap-3 sm:mb-8 sm:gap-4 md:flex-row md:items-start md:justify-between;
   }
 
   .page-header__content {
@@ -79,7 +83,7 @@
   }
 
   .page-header__description {
-    @apply mt-1 max-w-2xl text-sm text-slate-500 sm:text-base;
+    @apply mt-1 hidden max-w-2xl text-sm text-slate-500 sm:block sm:text-base;
   }
 
   .page-header__actions {
@@ -87,7 +91,17 @@
   }
 
   .stat-grid {
-    @apply mb-6 grid grid-cols-2 gap-2.5 sm:mb-8 sm:gap-3 md:grid-cols-3 lg:grid-cols-5;
+    @apply mb-5 flex gap-2.5 overflow-x-auto pb-1 sm:mb-8 sm:grid sm:grid-cols-2 sm:gap-3 sm:overflow-visible sm:pb-0 md:grid-cols-3 lg:grid-cols-5;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .stat-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .stat-grid > * {
+    @apply min-w-[8.5rem] shrink-0 sm:min-w-0;
   }
 
   .kanban-scroll {
@@ -111,7 +125,7 @@
   }
 
   .column-tab {
-    @apply shrink-0 rounded-xl border px-3 py-2 text-sm font-medium transition;
+    @apply shrink-0 rounded-xl border px-3 py-2.5 text-sm font-medium transition;
   }
 
   .column-tab--active {
@@ -122,8 +136,17 @@
     @apply border-slate-200 bg-white text-slate-600 active:bg-slate-50;
   }
 
+  .kanban-column--mobile {
+    @apply border-0 bg-transparent p-0 shadow-none;
+  }
+
   .modal-sheet {
     @apply fixed inset-x-0 bottom-0 z-50 m-0 max-h-[92dvh] w-full max-w-none rounded-t-2xl border border-slate-200 bg-white p-0 shadow-modal backdrop:bg-slate-900/50 backdrop:backdrop-blur-sm sm:inset-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:m-auto sm:max-h-[90vh] sm:w-[calc(100%-1.5rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl;
+    padding-bottom: max(0px, var(--safe-bottom));
+  }
+
+  .modal-sheet__handle {
+    @apply mx-auto mt-2 h-1 w-10 rounded-full bg-slate-300 sm:hidden;
   }
 
   .modal-sheet--wide {

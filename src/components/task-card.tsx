@@ -17,6 +17,7 @@ export function TaskCard({
   canEdit = false,
   onAddAssignee,
   onRemoveAssignee,
+  mobile = false,
 }: {
   task: TaskWithRelations;
   onClick?: () => void;
@@ -25,6 +26,7 @@ export function TaskCard({
   canEdit?: boolean;
   onAddAssignee?: (taskId: string, userId: string) => void;
   onRemoveAssignee?: (taskId: string, userId: string) => void;
+  mobile?: boolean;
 }) {
   const [dragOver, setDragOver] = useState(false);
 
@@ -72,12 +74,14 @@ export function TaskCard({
           onClick?.();
         }
       }}
-      className={`group w-full rounded-xl border border-l-4 bg-white p-3 text-left shadow-sm transition hover:border-brand-300 hover:shadow-card ${PRIORITY_COLORS[task.priority]} ${draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${
+      className={`group w-full rounded-xl border border-l-4 bg-white text-left shadow-sm transition hover:border-brand-300 hover:shadow-card ${PRIORITY_COLORS[task.priority]} ${draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${
+        mobile ? "p-3.5 active:scale-[0.99] active:bg-slate-50" : "p-3"
+      } ${
         dragOver ? "border-brand-400 bg-brand-50/50 ring-2 ring-brand-100" : "border-slate-200/80"
       }`}
     >
       <div className="flex items-start gap-2">
-        {draggable && (
+        {draggable && !mobile && (
           <span className="mt-0.5 text-slate-300 opacity-0 transition group-hover:opacity-100">
             <IconGrip size={14} />
           </span>

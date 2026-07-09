@@ -19,7 +19,7 @@ export function TaskListRow({
     <button
       type="button"
       onClick={onClick}
-      className={`group flex w-full flex-col gap-2 rounded-xl border border-slate-200/80 border-l-4 bg-white px-3 py-3 text-left shadow-sm transition hover:border-slate-300 hover:shadow-card sm:flex-row sm:items-center sm:gap-3 sm:px-4 ${PRIORITY_COLORS[task.priority]}`}
+      className={`group flex w-full flex-col gap-2 rounded-xl border border-slate-200/80 border-l-4 bg-white px-3 py-3 text-left shadow-sm transition active:scale-[0.99] active:bg-slate-50 hover:border-slate-300 hover:shadow-card sm:flex-row sm:items-center sm:gap-3 sm:px-4 sm:active:scale-100 sm:active:bg-white ${PRIORITY_COLORS[task.priority]}`}
     >
       <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center">
         <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-slate-300 bg-white transition group-hover:border-brand-400 sm:mt-0" />

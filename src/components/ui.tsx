@@ -13,7 +13,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`surface-card ${hover ? "surface-card-hover" : ""} ${padding ? "p-4 sm:p-5" : ""} ${className}`}
+      className={`surface-card ${hover ? "surface-card-hover" : ""} ${padding ? "p-3.5 sm:p-5" : ""} ${className}`}
     >
       {children}
     </div>

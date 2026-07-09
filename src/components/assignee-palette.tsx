@@ -5,6 +5,7 @@ import { ASSIGNEE_DRAG_TYPE, IconUsers } from "@/components/icons";
 import { UserAvatar } from "@/components/user-avatar";
 import { userLabel } from "@/lib/user-display";
 import { Button } from "@/components/ui";
+import { useIsMobile } from "@/hooks/use-media-query";
 
 type UserOption = { id: string; name: string | null; email: string };
 
@@ -14,6 +15,7 @@ export function AssigneePalette({
   users: UserOption[];
 }) {
   const [open, setOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   if (users.length <= 1) return null;
 
@@ -24,7 +26,7 @@ export function AssigneePalette({
         variant="secondary"
         size="sm"
         onClick={() => setOpen((value) => !value)}
-        className="gap-1.5"
+        className="w-full gap-1.5 sm:w-auto"
       >
         <IconUsers size={14} />
         People
@@ -36,24 +38,41 @@ export function AssigneePalette({
       {open && (
         <div className="mt-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
           <p className="mb-2 text-xs text-slate-500">
-            Drag someone onto a task to assign them as owner.
+            {isMobile
+              ? "Open a task and use Assignees to add people."
+              : "Drag someone onto a task to assign them as owner."}
           </p>
-          <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1 sm:flex-wrap">
-            {users.map((user) => (
-              <div
-                key={user.id}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData(ASSIGNEE_DRAG_TYPE, user.id);
-                  e.dataTransfer.effectAllowed = "copy";
-                }}
-                className="flex cursor-grab items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:border-brand-300 hover:bg-brand-50 active:cursor-grabbing"
-              >
-                <UserAvatar userId={user.id} name={user.name} email={user.email} size="xs" />
-                {userLabel(user.name, user.email)}
-              </div>
-            ))}
-          </div>
+          {!isMobile && (
+            <div className="flex flex-wrap gap-2">
+              {users.map((user) => (
+                <div
+                  key={user.id}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData(ASSIGNEE_DRAG_TYPE, user.id);
+                    e.dataTransfer.effectAllowed = "copy";
+                  }}
+                  className="flex cursor-grab items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:border-brand-300 hover:bg-brand-50 active:cursor-grabbing"
+                >
+                  <UserAvatar userId={user.id} name={user.name} email={user.email} size="xs" />
+                  {userLabel(user.name, user.email)}
+                </div>
+              ))}
+            </div>
+          )}
+          {isMobile && (
+            <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1">
+              {users.map((user) => (
+                <div
+                  key={user.id}
+                  className="flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-medium text-slate-700"
+                >
+                  <UserAvatar userId={user.id} name={user.name} email={user.email} size="xs" />
+                  {userLabel(user.name, user.email)}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

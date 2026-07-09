@@ -48,13 +48,18 @@ export function BoardPageClient({
   return (
     <>
       {canEdit && (
-        <div className="mb-6 space-y-3">
-          <QuickAddTask
-            workspaceId={workspaceId}
-            columnId={defaultColumnId}
-            assigneeOptions={assigneeOptions}
-            currentUserId={currentUserId}
-          />
+        <div className="mb-5 space-y-3 md:mb-6">
+          <div className="sticky top-0 z-10 -mx-3 border-b border-slate-200/60 bg-[#f4f6f9]/95 px-3 py-3 backdrop-blur-sm md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+            <QuickAddTask
+              workspaceId={workspaceId}
+              columnId={defaultColumnId}
+              assigneeOptions={assigneeOptions}
+              currentUserId={currentUserId}
+            />
+          </div>
+          <p className="mobile-only-hint">
+            Tap a task to edit. Swipe columns or use arrows to move between stages.
+          </p>
           {assigneeOptions && assigneeOptions.length > 1 && (
             <AssigneePalette users={assigneeOptions} />
           )}
