@@ -11,6 +11,7 @@ import {
   parsePriority,
 } from "@/lib/domain/task-queries";
 import { getDefaultColumnId } from "@/lib/domain/workspace-bootstrap";
+import { getWorkspaceAssigneeOptions } from "@/app/actions/workspaces";
 import { prisma } from "@/lib/prisma";
 
 export type ActionResult = { error?: string; taskId?: string };
@@ -50,6 +51,38 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
     _max: { position: true },
   });
 
+  const workspace = await prisma.taskWorkspace.findUnique({
+    where: { id: workspaceId },
+    select: { type: true },
+  });
+
+  const requestedAssignees = [
+    ...new Set(
+      formData
+        .getAll("assigneeIds")
+        .map((value) => String(value).trim())
+        .filter(Boolean)
+    ),
+  ];
+
+  let assigneeIds = requestedAssignees;
+  if (assigneeIds.length === 0) {
+    assigneeIds = [auth.user.id];
+  }
+
+  if (
+    workspace &&
+    workspace.type !== "PERSONAL" &&
+    requestedAssignees.length > 0
+  ) {
+    const allowed = await getWorkspaceAssigneeOptions(workspaceId);
+    const allowedIds = new Set(allowed.map((u) => u.id));
+    assigneeIds = assigneeIds.filter((id) => allowedIds.has(id));
+    if (assigneeIds.length === 0) {
+      return { error: "Select at least one valid assignee." };
+    }
+  }
+
   const task = await prisma.task.create({
     data: {
       workspaceId,
@@ -61,7 +94,7 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
       createdById: auth.user.id,
       position: (maxPosition._max.position ?? -1) + 1,
       assignees: {
-        create: { userId: auth.user.id },
+        create: assigneeIds.map((userId) => ({ userId })),
       },
     },
   });

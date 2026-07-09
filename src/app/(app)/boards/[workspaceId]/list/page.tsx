@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { getAllUsers } from "@/app/actions/workspaces";
+import { getAllUsers, getWorkspaceAssigneeOptions } from "@/app/actions/workspaces";
 import { QuickAddTask } from "@/components/quick-add-task";
 import { TaskListView } from "@/components/task-list-view";
 import { ViewSwitcher } from "@/components/view-switcher";
@@ -28,7 +28,7 @@ export default async function BoardListPage({
   );
   if (!workspaceAccess.canView) notFound();
 
-  const [workspace, tasks, users] = await Promise.all([
+  const [workspace, tasks, users, assigneeOptions] = await Promise.all([
     prisma.taskWorkspace.findUnique({
       where: { id: workspaceId },
       include: {
@@ -38,6 +38,7 @@ export default async function BoardListPage({
     }),
     getWorkspaceOpenTasks(workspaceId),
     getAllUsers(),
+    getWorkspaceAssigneeOptions(workspaceId),
   ]);
   if (!workspace) notFound();
 
@@ -57,7 +58,11 @@ export default async function BoardListPage({
 
       {workspaceAccess.canEdit && (
         <Card className="mb-6">
-          <QuickAddTask workspaceId={workspaceId} />
+          <QuickAddTask
+            workspaceId={workspaceId}
+            assigneeOptions={assigneeOptions}
+            currentUserId={access.user.id}
+          />
         </Card>
       )}
 

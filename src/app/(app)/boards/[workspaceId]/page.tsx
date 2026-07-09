@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { getAllUsers } from "@/app/actions/workspaces";
+import { getAllUsers, getWorkspaceAssigneeOptions } from "@/app/actions/workspaces";
 import { BoardPageClient } from "@/components/board-page-client";
 import { ViewSwitcher } from "@/components/view-switcher";
 import { InviteMemberForm } from "@/components/invite-member-form";
@@ -28,10 +28,11 @@ export default async function BoardPage({
   );
   if (!workspaceAccess.canView) notFound();
 
-  const [workspace, users, defaultColumnId] = await Promise.all([
+  const [workspace, users, defaultColumnId, assigneeOptions] = await Promise.all([
     getWorkspaceBoard(workspaceId),
     getAllUsers(),
     getDefaultColumnId(workspaceId),
+    getWorkspaceAssigneeOptions(workspaceId),
   ]);
   if (!workspace) notFound();
 
@@ -68,6 +69,8 @@ export default async function BoardPage({
         users={users}
         canEdit={workspaceAccess.canEdit}
         defaultColumnId={defaultColumnId ?? undefined}
+        assigneeOptions={assigneeOptions}
+        currentUserId={access.user.id}
       />
     </>
   );

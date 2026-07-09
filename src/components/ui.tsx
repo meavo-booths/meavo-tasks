@@ -3,12 +3,18 @@ import { ReactNode } from "react";
 export function Card({
   children,
   className = "",
+  hover = false,
+  padding = true,
 }: {
   children: ReactNode;
   className?: string;
+  hover?: boolean;
+  padding?: boolean;
 }) {
   return (
-    <div className={`rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 ${className}`}>
+    <div
+      className={`surface-card ${hover ? "surface-card-hover" : ""} ${padding ? "p-4 sm:p-5" : ""} ${className}`}
+    >
       {children}
     </div>
   );
@@ -18,6 +24,7 @@ export function Button({
   children,
   type = "button",
   variant = "primary",
+  size = "md",
   className = "",
   disabled,
   onClick,
@@ -25,15 +32,23 @@ export function Button({
   children: ReactNode;
   type?: "button" | "submit";
   variant?: "primary" | "secondary" | "danger" | "ghost";
+  size?: "sm" | "md";
   className?: string;
   disabled?: boolean;
   onClick?: () => void;
 }) {
   const variants = {
-    primary: "bg-brand-600 text-white hover:bg-brand-700",
-    secondary: "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
-    danger: "bg-red-600 text-white hover:bg-red-700",
-    ghost: "text-slate-600 hover:bg-slate-100",
+    primary:
+      "bg-brand-600 text-white shadow-sm hover:bg-brand-700 active:bg-brand-700 focus-visible:ring-brand-200",
+    secondary:
+      "border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 active:bg-slate-100 focus-visible:ring-slate-200",
+    danger:
+      "bg-red-600 text-white shadow-sm hover:bg-red-700 active:bg-red-700 focus-visible:ring-red-200",
+    ghost: "text-slate-600 hover:bg-slate-100 active:bg-slate-200 focus-visible:ring-slate-200",
+  };
+  const sizes = {
+    sm: "rounded-lg px-3 py-1.5 text-xs",
+    md: "rounded-xl px-4 py-2.5 text-sm",
   };
 
   return (
@@ -41,7 +56,7 @@ export function Button({
       type={type}
       disabled={disabled}
       onClick={onClick}
-      className={`inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 ${variants[variant]} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 font-medium transition focus-visible:outline-none focus-visible:ring-4 disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${sizes[size]} ${className}`}
     >
       {children}
     </button>
@@ -74,7 +89,7 @@ export function Input({
   autoComplete?: string;
 }) {
   return (
-    <label className="block space-y-1 text-sm">
+    <label className="block space-y-1.5 text-sm">
       <span className="font-medium text-slate-700">{label}</span>
       <input
         name={name}
@@ -87,7 +102,7 @@ export function Input({
         max={max}
         placeholder={placeholder}
         autoComplete={autoComplete}
-        className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        className="input-field"
       />
     </label>
   );
@@ -107,13 +122,13 @@ export function Select({
   required?: boolean;
 }) {
   return (
-    <label className="block space-y-1 text-sm">
+    <label className="block space-y-1.5 text-sm">
       <span className="font-medium text-slate-700">{label}</span>
       <select
         name={name}
         defaultValue={defaultValue}
         required={required}
-        className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        className="input-field"
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -130,16 +145,19 @@ export function Badge({
   tone = "neutral",
 }: {
   children: ReactNode;
-  tone?: "neutral" | "success" | "warning" | "danger";
+  tone?: "neutral" | "success" | "warning" | "danger" | "brand";
 }) {
   const tones = {
-    neutral: "bg-slate-100 text-slate-700",
-    success: "bg-emerald-100 text-emerald-800",
-    warning: "bg-amber-100 text-amber-800",
-    danger: "bg-red-100 text-red-800",
+    neutral: "bg-slate-100 text-slate-700 ring-slate-200",
+    success: "bg-emerald-50 text-emerald-800 ring-emerald-200",
+    warning: "bg-amber-50 text-amber-800 ring-amber-200",
+    danger: "bg-red-50 text-red-700 ring-red-200",
+    brand: "bg-brand-50 text-brand-700 ring-brand-200",
   };
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${tones[tone]}`}>
+    <span
+      className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${tones[tone]}`}
+    >
       {children}
     </span>
   );
@@ -155,12 +173,91 @@ export function PageHeader({
   children?: ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-4 sm:mb-8">
+    <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
-        <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">{title}</h1>
-        {description && <p className="mt-1 text-sm text-slate-600 sm:text-base">{description}</p>}
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+          {title}
+        </h1>
+        {description && <p className="mt-1.5 max-w-2xl text-sm text-slate-500 sm:text-base">{description}</p>}
       </div>
       {children}
+    </div>
+  );
+}
+
+export function SectionHeader({
+  title,
+  description,
+  icon,
+  action,
+}: {
+  title: string;
+  description?: string;
+  icon?: ReactNode;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+      <div className="flex min-w-0 items-start gap-3">
+        {icon && (
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+            {icon}
+          </div>
+        )}
+        <div>
+          <h2 className="section-title">{title}</h2>
+          {description && <p className="section-subtitle">{description}</p>}
+        </div>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+export function EmptyState({
+  title,
+  description,
+  icon,
+}: {
+  title: string;
+  description?: string;
+  icon?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 px-6 py-10 text-center">
+      {icon && <div className="mb-3 text-slate-400">{icon}</div>}
+      <p className="text-sm font-medium text-slate-700">{title}</p>
+      {description && <p className="mt-1 max-w-sm text-sm text-slate-500">{description}</p>}
+    </div>
+  );
+}
+
+export function StatCard({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string | number;
+  tone?: "neutral" | "danger" | "warning" | "brand";
+}) {
+  const tones = {
+    neutral: "border-slate-200 bg-white",
+    danger: "border-red-200 bg-red-50/50",
+    warning: "border-amber-200 bg-amber-50/50",
+    brand: "border-brand-200 bg-brand-50/50",
+  };
+  const values = {
+    neutral: "text-slate-900",
+    danger: "text-red-700",
+    warning: "text-amber-800",
+    brand: "text-brand-700",
+  };
+
+  return (
+    <div className={`rounded-2xl border px-4 py-3 ${tones[tone]}`}>
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+      <p className={`mt-1 text-2xl font-semibold tabular-nums ${values[tone]}`}>{value}</p>
     </div>
   );
 }

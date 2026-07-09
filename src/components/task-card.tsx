@@ -1,6 +1,8 @@
-import { format } from "date-fns";
-import { Badge } from "@/components/ui";
-import { PRIORITY_DOT_COLORS } from "@/lib/dates";
+import { PriorityBadge } from "@/components/priority-badge";
+import { DueDateBadge } from "@/components/due-date-badge";
+import { IconGrip } from "@/components/icons";
+import { AvatarStack } from "@/components/user-avatar";
+import { PRIORITY_COLORS } from "@/lib/dates";
 import type { TaskWithRelations } from "@/lib/domain/task-queries";
 
 export function TaskCard({
@@ -22,28 +24,34 @@ export function TaskCard({
       draggable={draggable}
       onDragStart={onDragStart}
       onClick={onClick}
-      className="w-full rounded-lg border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-brand-300 hover:shadow-md"
+      className={`group w-full rounded-xl border border-slate-200/80 border-l-4 bg-white p-3 text-left shadow-sm transition hover:border-brand-300 hover:shadow-card ${PRIORITY_COLORS[task.priority]} ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
     >
       <div className="flex items-start gap-2">
-        <span
-          className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${PRIORITY_DOT_COLORS[task.priority]}`}
-        />
+        {draggable && (
+          <span className="mt-0.5 text-slate-300 opacity-0 transition group-hover:opacity-100">
+            <IconGrip size={14} />
+          </span>
+        )}
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-slate-900">{task.title}</p>
-          {task.dueDate && (
-            <p className="mt-1 text-xs text-slate-500">
-              Due {format(task.dueDate, "MMM d")}
-            </p>
-          )}
-          {task.assignees.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {task.assignees.slice(0, 3).map((a) => (
-                <Badge key={a.userId} tone="neutral">
-                  {(a.user.name ?? a.user.email ?? "?").split(" ")[0]}
-                </Badge>
-              ))}
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className="text-sm font-medium leading-snug text-slate-900">{task.title}</p>
+            <PriorityBadge priority={task.priority} compact />
+          </div>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            {task.dueDate ? (
+              <DueDateBadge dueDate={task.dueDate} compact />
+            ) : (
+              <span />
+            )}
+            <AvatarStack
+              users={task.assignees.map((a) => ({
+                userId: a.userId,
+                name: a.user.name,
+                email: a.user.email,
+              }))}
+              size="xs"
+            />
+          </div>
         </div>
       </div>
     </button>

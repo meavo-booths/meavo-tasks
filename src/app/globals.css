@@ -3,23 +3,54 @@
 @tailwind utilities;
 
 :root {
-  --background: #f8fafc;
+  --background: #f4f6f9;
   --foreground: #0f172a;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --muted: #64748b;
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  min-height: 100vh;
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    color: var(--foreground);
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(48, 164, 108, 0.08), transparent),
+      var(--background);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: #d1f4e0;
+    color: #0f172a;
+  }
 }
 
-.fc {
-  --fc-border-color: #e2e8f0;
-  --fc-button-bg-color: #30A46C;
-  --fc-button-border-color: #30A46C;
-  --fc-button-hover-bg-color: #0C8F61;
-  --fc-button-hover-border-color: #0C8F61;
-  --fc-today-bg-color: #f0fdf4;
+@layer components {
+  .surface-card {
+    @apply rounded-2xl border border-slate-200/80 bg-white shadow-card;
+  }
+
+  .surface-card-hover {
+    @apply transition duration-200 hover:border-slate-300 hover:shadow-card-hover;
+  }
+
+  .input-field {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 transition focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100;
+  }
+
+  .section-title {
+    @apply text-base font-semibold tracking-tight text-slate-900;
+  }
+
+  .section-subtitle {
+    @apply mt-0.5 text-sm text-slate-500;
+  }
 }
 
 @media (max-width: 639px) {

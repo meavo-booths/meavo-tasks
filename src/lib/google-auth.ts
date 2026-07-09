@@ -7,7 +7,7 @@ export function isGoogleAuthEnabled(): boolean {
 
 export const LOGIN_ERROR_MESSAGES: Record<string, string> = {
   NotInvited: "No account found for this Google email. Ask your admin to invite you on meavo.app first.",
-  NoAccess: "You don't have access to Vacation Tracker. Ask your admin to grant the tool on meavo.app.",
+  NoAccess: "You don't have access to Tasks. Ask your admin to grant the tool on meavo.app.",
   AccessDenied: "Sign in was denied. Try again or use email and password.",
   Configuration: "Google sign-in is not configured correctly. Contact support.",
   OAuthSignin: "Could not start Google sign-in. Try again.",

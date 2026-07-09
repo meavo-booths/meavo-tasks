@@ -4,8 +4,11 @@ import {
   TaskStatus,
   TaskWorkspaceType,
 } from "@prisma/client";
+import { addDays, isBefore, isSameDay, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceAccess } from "@/lib/domain/task-authz";
+
+const UPCOMING_DAYS = 3;
 
 const taskInclude = {
   assignees: {
@@ -142,6 +145,126 @@ export async function getWorkspaceOpenTasks(workspaceId: string) {
     },
     orderBy: [{ dueDate: "asc" }, { position: "asc" }],
     include: taskInclude,
+  });
+}
+
+export type BoardDashboardSummary = {
+  id: string;
+  name: string;
+  type: TaskWorkspaceType;
+  teamName: string | null;
+  teamColor: string | null;
+  openCount: number;
+  dueTodayCount: number;
+  dueSoonCount: number;
+  urgentCount: number;
+  inProgressCount: number;
+  columns: { id: string; name: string }[];
+  tasks: TaskWithRelations[];
+};
+
+export async function getBoardDashboardSummaries(
+  userId: string,
+  systemRole?: SystemRole
+): Promise<BoardDashboardSummary[]> {
+  const workspaces = await getAccessibleWorkspaces(userId, systemRole);
+  const boards = workspaces.filter((w) => w.type !== TaskWorkspaceType.PERSONAL);
+  if (boards.length === 0) return [];
+
+  const boardIds = boards.map((b) => b.id);
+  const [tasks, columns] = await Promise.all([
+    prisma.task.findMany({
+      where: {
+        workspaceId: { in: boardIds },
+        status: TaskStatus.OPEN,
+      },
+      orderBy: [{ dueDate: "asc" }, { position: "asc" }],
+      include: {
+        ...taskInclude,
+        workspace: { select: { id: true, name: true, type: true } },
+      },
+    }),
+    prisma.taskBoardColumn.findMany({
+      where: { workspaceId: { in: boardIds } },
+      orderBy: { position: "asc" },
+      select: { id: true, name: true, workspaceId: true },
+    }),
+  ]);
+
+  const today = startOfDay(new Date());
+  const soonEnd = addDays(today, UPCOMING_DAYS);
+
+  return boards.map((board) => {
+    const boardTasks = tasks.filter((t) => t.workspaceId === board.id);
+    let dueTodayCount = 0;
+    let dueSoonCount = 0;
+    let urgentCount = 0;
+    let inProgressCount = 0;
+
+    for (const task of boardTasks) {
+      if (task.priority === TaskPriority.URGENT || task.priority === TaskPriority.HIGH) {
+        urgentCount += 1;
+      }
+      if (task.column?.name === "In Progress") {
+        inProgressCount += 1;
+      }
+      if (!task.dueDate) continue;
+      const due = startOfDay(task.dueDate);
+      if (isSameDay(due, today)) {
+        dueTodayCount += 1;
+      } else if (!isBefore(due, today) && !isBefore(soonEnd, due)) {
+        dueSoonCount += 1;
+      }
+    }
+
+    return {
+      id: board.id,
+      name: board.name,
+      type: board.type,
+      teamName: board.team?.name ?? null,
+      teamColor: board.team?.color ?? null,
+      openCount: boardTasks.length,
+      dueTodayCount,
+      dueSoonCount,
+      urgentCount,
+      inProgressCount,
+      columns: columns
+        .filter((col) => col.workspaceId === board.id)
+        .map((col) => ({ id: col.id, name: col.name })),
+      tasks: boardTasks,
+    };
+  });
+}
+
+export async function getSharedUpcomingTasks(
+  userId: string,
+  systemRole?: SystemRole
+) {
+  const workspaces = await getAccessibleWorkspaces(userId, systemRole);
+  const boardIds = workspaces
+    .filter(
+      (w) =>
+        w.type === TaskWorkspaceType.TEAM || w.type === TaskWorkspaceType.SHARED
+    )
+    .map((w) => w.id);
+
+  if (boardIds.length === 0) return [];
+
+  const today = startOfDay(new Date());
+  const horizon = addDays(today, UPCOMING_DAYS);
+
+  return prisma.task.findMany({
+    where: {
+      workspaceId: { in: boardIds },
+      status: TaskStatus.OPEN,
+      assignees: { some: { userId } },
+      dueDate: { gte: today, lte: horizon },
+    },
+    orderBy: [{ dueDate: "asc" }, { position: "asc" }],
+    include: {
+      ...taskInclude,
+      workspace: { select: { id: true, name: true, type: true } },
+    },
   });
 }
 

@@ -30,6 +30,7 @@ export function CreateBoardForms({
       {teamsWithoutBoard.length > 0 && (
         <Card>
           <h2 className="text-sm font-semibold text-slate-900">New team board</h2>
+          <p className="mt-1 text-xs text-slate-500">One board per gateway team.</p>
           <form action={teamAction} className="mt-4 space-y-3">
             <Select
               label="Team"
@@ -53,6 +54,7 @@ export function CreateBoardForms({
 
       <Card>
         <h2 className="text-sm font-semibold text-slate-900">New shared board</h2>
+        <p className="mt-1 text-xs text-slate-500">Invite members after creating.</p>
         <form action={sharedAction} className="mt-4 space-y-3">
           <Input label="Board name" name="name" required placeholder="Project Alpha" />
           <Button type="submit" disabled={sharedPending}>

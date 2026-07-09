@@ -11,6 +11,7 @@ import {
 } from "@/app/actions/tasks";
 import { LinkEntityPicker } from "@/components/link-entity-picker";
 import { Modal } from "@/components/modal";
+import { PriorityBadge } from "@/components/priority-badge";
 import { Button, Input, Select } from "@/components/ui";
 import { PRIORITY_OPTIONS } from "@/lib/tasks-config";
 import type { TaskWithRelations } from "@/lib/domain/task-queries";
@@ -154,7 +155,14 @@ export function TaskDetailModal({
       ) : (
         <div className="space-y-3 text-sm text-slate-600">
           <p>{task.description || "No description."}</p>
-          <p>Priority: {task.priority}</p>
+          <p className="flex items-center gap-2">
+            Priority:
+            {task.priority === "NONE" ? (
+              <span>None</span>
+            ) : (
+              <PriorityBadge priority={task.priority} />
+            )}
+          </p>
           {task.dueDate && <p>Due: {task.dueDate.toLocaleDateString()}</p>}
         </div>
       )}

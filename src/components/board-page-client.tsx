@@ -21,12 +21,16 @@ export function BoardPageClient({
   users,
   canEdit,
   defaultColumnId,
+  assigneeOptions,
+  currentUserId,
 }: {
   workspaceId: string;
   columns: ColumnData[];
   users: UserOption[];
   canEdit: boolean;
   defaultColumnId?: string;
+  assigneeOptions?: UserOption[];
+  currentUserId?: string;
 }) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -39,7 +43,12 @@ export function BoardPageClient({
     <>
       {canEdit && (
         <div className="mb-6">
-          <QuickAddTask workspaceId={workspaceId} columnId={defaultColumnId} />
+          <QuickAddTask
+            workspaceId={workspaceId}
+            columnId={defaultColumnId}
+            assigneeOptions={assigneeOptions}
+            currentUserId={currentUserId}
+          />
         </div>
       )}
       <BoardView

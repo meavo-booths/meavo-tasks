@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode, useEffect, useRef } from "react";
+import { IconX } from "@/components/icons";
 
 export function Modal({
   open,
@@ -40,24 +41,24 @@ export function Modal({
   return (
     <dialog
       ref={dialogRef}
-      className={`fixed inset-0 z-50 m-auto w-[calc(100%-2rem)] rounded-xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/40 ${wide ? "max-w-2xl" : "max-w-lg"}`}
+      className={`fixed inset-0 z-50 m-auto w-[calc(100%-1.5rem)] max-h-[90vh] rounded-2xl border border-slate-200 bg-white p-0 shadow-modal backdrop:bg-slate-900/50 backdrop:backdrop-blur-sm ${wide ? "max-w-2xl" : "max-w-lg"}`}
       role="dialog"
       aria-labelledby="modal-title"
     >
-      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-6">
-        <h2 id="modal-title" className="text-lg font-semibold text-slate-900">
+      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+        <h2 id="modal-title" className="pr-4 text-lg font-semibold tracking-tight text-slate-900">
           {title}
         </h2>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-lg p-1 text-slate-500 hover:bg-slate-100"
+          className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
           aria-label="Close"
         >
-          ✕
+          <IconX size={18} />
         </button>
       </div>
-      <div className="max-h-[70vh] overflow-y-auto px-4 py-4 sm:px-6">{children}</div>
+      <div className="max-h-[calc(90vh-4.5rem)] overflow-y-auto px-5 py-5">{children}</div>
     </dialog>
   );
 }

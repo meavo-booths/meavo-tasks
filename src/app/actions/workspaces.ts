@@ -189,3 +189,57 @@ export async function getAllUsers() {
     orderBy: { name: "asc" },
   });
 }
+
+export async function getWorkspaceAssigneeOptions(workspaceId: string) {
+  const auth = await requireUser();
+  if ("error" in auth) return [];
+
+  const workspace = await prisma.taskWorkspace.findUnique({
+    where: { id: workspaceId },
+    include: {
+      owner: { select: { id: true, name: true, email: true } },
+      members: {
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+        },
+      },
+      team: {
+        include: {
+          members: {
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!workspace) return [];
+
+  const users = new Map<string, { id: string; name: string | null; email: string }>();
+  const addUser = (user: { id: string; name: string | null; email: string }) => {
+    users.set(user.id, user);
+  };
+
+  addUser(workspace.owner);
+
+  if (workspace.type === TaskWorkspaceType.SHARED) {
+    for (const member of workspace.members) {
+      addUser(member.user);
+    }
+  }
+
+  if (workspace.type === TaskWorkspaceType.TEAM && workspace.team) {
+    for (const member of workspace.team.members) {
+      addUser(member.user);
+    }
+  }
+
+  if (workspace.type === TaskWorkspaceType.PERSONAL) {
+    return [workspace.owner];
+  }
+
+  return [...users.values()].sort((a, b) =>
+    (a.name ?? a.email).localeCompare(b.name ?? b.email)
+  );
+}

@@ -37,18 +37,12 @@ export const DUE_GROUP_LABELS: Record<DueDateGroup, string> = {
   no_date: "No date",
 };
 
-export const PRIORITY_COLORS: Record<string, string> = {
-  NONE: "border-l-slate-200",
-  LOW: "border-l-sky-400",
-  MEDIUM: "border-l-amber-400",
-  HIGH: "border-l-orange-500",
-  URGENT: "border-l-red-500",
-};
+import { PRIORITY_META } from "@/lib/tasks-config";
 
-export const PRIORITY_DOT_COLORS: Record<string, string> = {
-  NONE: "bg-slate-300",
-  LOW: "bg-sky-400",
-  MEDIUM: "bg-amber-400",
-  HIGH: "bg-orange-500",
-  URGENT: "bg-red-500",
-};
+export const PRIORITY_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(PRIORITY_META).map(([key, meta]) => [key, meta.border])
+);
+
+export const PRIORITY_DOT_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(PRIORITY_META).map(([key, meta]) => [key, meta.dot])
+);
