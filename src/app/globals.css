@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  min-height: 100vh;
+}
+
+.fc {
+  --fc-border-color: #e2e8f0;
+  --fc-button-bg-color: #30A46C;
+  --fc-button-border-color: #30A46C;
+  --fc-button-hover-bg-color: #0C8F61;
+  --fc-button-hover-border-color: #0C8F61;
+  --fc-today-bg-color: #f0fdf4;
+}
+
+@media (max-width: 639px) {
+  .fc .fc-toolbar {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .fc .fc-toolbar-title {
+    font-size: 1.1rem;
+  }
+
+  .fc .fc-button {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .fc .fc-col-header-cell-cushion,
+  .fc .fc-daygrid-day-number {
+    font-size: 0.75rem;
+  }
+
+  .fc .fc-daygrid-event {
+    font-size: 0.7rem;
+  }
+}

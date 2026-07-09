@@ -1,0 +1,44 @@
+{
+  "name": "meavo-tasks",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "postinstall": "prisma generate",
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:generate": "prisma generate",
+    "db:push": "echo 'db:push is disabled. The shared schema lives in the meavo-db repo — make changes there.' && exit 1",
+    "db:studio": "prisma studio"
+  },
+  "prisma": {
+    "schema": "node_modules/@meavo/db/prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@meavo/db": "file:../meavo-db",
+    "@meavo/navigation": "file:../meavo-navigation",
+    "@prisma/client": "^6.19.3",
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
+    "bcryptjs": "^2.4.3",
+    "date-fns": "^4.1.0",
+    "next": "^15.1.0",
+    "next-auth": "^5.0.0-beta.25",
+    "prisma": "^6.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.2.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "eslint": "^9.17.0",
+    "eslint-config-next": "^15.1.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2"
+  }
+}
