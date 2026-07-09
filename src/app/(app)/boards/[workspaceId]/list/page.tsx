@@ -2,7 +2,9 @@ import { notFound, redirect } from "next/navigation";
 import {
   getExternalAssigneeCandidates,
   getWorkspaceAssigneeOptions,
+  getWorkspaceInviteCandidates,
 } from "@/app/actions/workspaces";
+import { InviteMemberForm } from "@/components/invite-member-form";
 import { QuickAddTask } from "@/components/quick-add-task";
 import { TaskListView } from "@/components/task-list-view";
 import { ViewSwitcher } from "@/components/view-switcher";
@@ -37,12 +39,25 @@ export default async function BoardListPage({
       include: {
         columns: { orderBy: { position: "asc" } },
         team: { select: { name: true } },
+        members: {
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
       },
     }),
     getWorkspaceOpenTasks(workspaceId),
     getWorkspaceAssigneeOptions(workspaceId),
   ]);
   if (!workspace) notFound();
+
+  const showInvite =
+    workspace.type === TaskWorkspaceType.SHARED &&
+    workspace.ownerId === access.user.id;
+
+  const teamInviteCandidates = showInvite
+    ? await getWorkspaceInviteCandidates(workspaceId)
+    : [];
 
   const externalCandidateUsers =
     workspace.type === TaskWorkspaceType.SHARED && workspaceAccess.canEdit
@@ -60,7 +75,16 @@ export default async function BoardListPage({
               : "List view"
           }
         />
-        <ViewSwitcher workspaceId={workspaceId} current="list" />
+        <div className="flex items-center gap-2">
+          {showInvite && (
+            <InviteMemberForm
+              workspaceId={workspaceId}
+              members={workspace.members}
+              teamCandidates={teamInviteCandidates}
+            />
+          )}
+          <ViewSwitcher workspaceId={workspaceId} current="list" />
+        </div>
       </div>
 
       {workspaceAccess.canEdit && (

@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import {
   getExternalAssigneeCandidates,
   getWorkspaceAssigneeOptions,
+  getWorkspaceInviteCandidates,
 } from "@/app/actions/workspaces";
 import { BoardPageClient } from "@/components/board-page-client";
 import { ViewSwitcher } from "@/components/view-switcher";
@@ -31,12 +32,18 @@ export default async function BoardPage({
   );
   if (!workspaceAccess.canView) notFound();
 
-  const [workspace, defaultColumnId, assigneeOptions] = await Promise.all([
-    getWorkspaceBoard(workspaceId),
+  const workspace = await getWorkspaceBoard(workspaceId);
+  if (!workspace) notFound();
+
+  const showInvite =
+    workspace.type === TaskWorkspaceType.SHARED &&
+    workspace.ownerId === access.user.id;
+
+  const [defaultColumnId, assigneeOptions, teamInviteCandidates] = await Promise.all([
     getDefaultColumnId(workspaceId),
     getWorkspaceAssigneeOptions(workspaceId),
+    showInvite ? getWorkspaceInviteCandidates(workspaceId) : Promise.resolve([]),
   ]);
-  if (!workspace) notFound();
 
   const externalCandidateUsers =
     workspace.type === TaskWorkspaceType.SHARED && workspaceAccess.canEdit
@@ -62,13 +69,17 @@ export default async function BoardPage({
                 : "Personal board"
           }
         />
-        <ViewSwitcher workspaceId={workspaceId} current="board" />
+        <div className="flex items-center gap-2">
+          {showInvite && (
+            <InviteMemberForm
+              workspaceId={workspaceId}
+              members={workspace.members}
+              teamCandidates={teamInviteCandidates}
+            />
+          )}
+          <ViewSwitcher workspaceId={workspaceId} current="board" />
+        </div>
       </div>
-
-      {workspace.type === TaskWorkspaceType.SHARED &&
-        workspace.ownerId === access.user.id && (
-          <InviteMemberForm workspaceId={workspaceId} members={workspace.members} />
-        )}
 
       <BoardPageClient
         workspaceId={workspaceId}

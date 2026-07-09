@@ -84,10 +84,11 @@ export async function inviteWorkspaceMember(
 
   const workspaceId = (formData.get("workspaceId") as string)?.trim();
   const email = (formData.get("email") as string)?.trim().toLowerCase();
+  const userId = (formData.get("userId") as string)?.trim();
   const role = (formData.get("role") as string)?.trim() as TaskWorkspaceRole;
 
-  if (!workspaceId || !email) {
-    return { error: "Workspace and email are required." };
+  if (!workspaceId || (!email && !userId)) {
+    return { error: "Select a team member or enter an email." };
   }
 
   try {
@@ -111,25 +112,45 @@ export async function inviteWorkspaceMember(
     return { error: "Only the board owner can invite members." };
   }
 
-  const invitee = await prisma.user.findUnique({ where: { email } });
-  if (!invitee) return { error: "No user found with that email." };
+  let inviteeId = userId;
+  if (inviteeId) {
+    const colleague = await prisma.teamMember.findFirst({
+      where: {
+        userId: auth.user.id,
+        team: { members: { some: { userId: inviteeId } } },
+      },
+      select: { id: true },
+    });
+    if (!colleague) {
+      return { error: "You can only invite people from your teams." };
+    }
+  } else {
+    const invitee = await prisma.user.findUnique({ where: { email } });
+    if (!invitee) return { error: "No user found with that email." };
+    inviteeId = invitee.id;
+  }
+
+  if (inviteeId === workspace.ownerId) {
+    return { error: "The board owner already has access." };
+  }
 
   const validRole =
     role === TaskWorkspaceRole.EDITOR ? TaskWorkspaceRole.EDITOR : TaskWorkspaceRole.VIEWER;
 
   await prisma.taskWorkspaceMember.upsert({
     where: {
-      workspaceId_userId: { workspaceId, userId: invitee.id },
+      workspaceId_userId: { workspaceId, userId: inviteeId },
     },
     create: {
       workspaceId,
-      userId: invitee.id,
+      userId: inviteeId,
       role: validRole,
     },
     update: { role: validRole },
   });
 
   revalidatePath(`/boards/${workspaceId}`);
+  revalidatePath(`/boards/${workspaceId}/list`);
   revalidatePath("/boards");
   return {};
 }
@@ -154,7 +175,80 @@ export async function removeWorkspaceMember(
   });
 
   revalidatePath(`/boards/${workspaceId}`);
+  revalidatePath(`/boards/${workspaceId}/list`);
   return {};
+}
+
+export type WorkspaceInviteCandidate = {
+  id: string;
+  name: string | null;
+  email: string;
+  teamName: string;
+};
+
+export async function getWorkspaceInviteCandidates(workspaceId: string) {
+  const auth = await requireUser();
+  if ("error" in auth) return [];
+
+  const workspace = await prisma.taskWorkspace.findUnique({
+    where: { id: workspaceId },
+    select: {
+      type: true,
+      ownerId: true,
+      members: { select: { userId: true } },
+    },
+  });
+  if (!workspace || workspace.type !== TaskWorkspaceType.SHARED) return [];
+  if (workspace.ownerId !== auth.user.id && auth.user.systemRole !== "ADMIN") {
+    return [];
+  }
+
+  const existingIds = new Set([
+    workspace.ownerId,
+    ...workspace.members.map((m) => m.userId),
+  ]);
+
+  const teamMemberships = await prisma.teamMember.findMany({
+    where: { userId: auth.user.id },
+    include: {
+      team: {
+        select: {
+          name: true,
+          members: {
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const candidates = new Map<string, WorkspaceInviteCandidate>();
+  for (const membership of teamMemberships) {
+    for (const member of membership.team.members) {
+      if (existingIds.has(member.userId) || member.userId === auth.user.id) {
+        continue;
+      }
+      const existing = candidates.get(member.userId);
+      if (existing) {
+        if (!existing.teamName.includes(membership.team.name)) {
+          existing.teamName = `${existing.teamName}, ${membership.team.name}`;
+        }
+        continue;
+      }
+      candidates.set(member.userId, {
+        id: member.user.id,
+        name: member.user.name,
+        email: member.user.email,
+        teamName: membership.team.name,
+      });
+    }
+  }
+
+  return [...candidates.values()].sort((a, b) =>
+    (a.name ?? a.email).localeCompare(b.name ?? b.email)
+  );
 }
 
 export async function getUserTeams() {
