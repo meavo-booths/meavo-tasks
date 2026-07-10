@@ -1,7 +1,11 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { format, isSameDay } from "date-fns";
+import { AssigneePalette } from "@/components/assignee-palette";
+import { BoardView } from "@/components/board-view";
 import { CreateBoardForms } from "@/components/create-board-forms";
 import { MobileBoardStrip } from "@/components/mobile-board-strip";
 import { MobileBottomNav, MobileFab, type MobileTab } from "@/components/mobile-bottom-nav";
@@ -37,10 +41,60 @@ type SharedTask = TaskWithRelations & {
   workspace: { id: string; name: string; type: TaskWorkspaceType };
 };
 
+const COLUMN_ACCENTS: Record<string, string> = {
+  Backlog: "bg-slate-400",
+  "To Do": "bg-sky-400",
+  "In Progress": "bg-amber-400",
+  Done: "bg-emerald-400",
+};
+
 function boardTypeLabel(type: TaskWorkspaceType, teamName: string | null) {
   if (type === TaskWorkspaceType.TEAM) return teamName ?? "Team board";
   if (type === TaskWorkspaceType.SHARED) return "Shared board";
   return "Personal";
+}
+
+function BoardColumnOverview({ board }: { board: BoardDashboardSummary }) {
+  if (board.columnTasks.length === 0) return null;
+
+  return (
+    <div className="mt-3 space-y-3">
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {board.columnTasks.map((column) => {
+          const accent = COLUMN_ACCENTS[column.name] ?? "bg-brand-500";
+          return (
+            <div
+              key={column.id}
+              className="min-w-[7.5rem] shrink-0 rounded-xl border border-slate-200/80 bg-white px-3 py-2"
+            >
+              <div className="flex items-center gap-1.5">
+                <span className={`h-1.5 w-1.5 rounded-full ${accent}`} />
+                <span className="truncate text-xs font-medium text-slate-700">{column.name}</span>
+              </div>
+              <p className="mt-1 text-lg font-semibold tabular-nums text-slate-900">
+                {column.tasks.length}
+              </p>
+              {column.tasks.length > 0 && (
+                <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                  {column.tasks[0]?.title}
+                  {column.tasks.length > 1 && ` +${column.tasks.length - 1}`}
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {board.tasks.length > 0 && (
+        <p className="text-xs text-slate-500">
+          {board.tasks
+            .slice(0, 4)
+            .map((task) => task.title)
+            .join(" · ")}
+          {board.tasks.length > 4 && ` · +${board.tasks.length - 4} more`}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function BoardSummaryCard({
@@ -60,8 +114,8 @@ function BoardSummaryCard({
   currentUserId: string;
   kanbanOnExpand?: boolean;
 }) {
-  const defaultColumnId =
-    board.columns.find((c) => c.name === "To Do")?.id ?? board.columns[0]?.id;
+  const members = assigneeOptions?.members ?? board.assigneeOptions;
+  const defaultColumnId = board.defaultColumnId ?? board.columns[0]?.id;
 
   return (
     <Card padding={false} hover className="overflow-hidden">
@@ -98,6 +152,7 @@ function BoardSummaryCard({
               style={{ backgroundColor: board.teamColor }}
             />
           )}
+          {!expanded && <BoardColumnOverview board={board} />}
         </div>
         <span
           className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition ${expanded ? "rotate-180" : ""}`}
@@ -108,30 +163,38 @@ function BoardSummaryCard({
 
       {expanded && (
         <div className="border-t border-slate-100 bg-slate-50/60 p-4 sm:p-5">
-          <div className="mb-4">
-            <QuickAddTask
-              workspaceId={board.id}
-              columnId={defaultColumnId}
-              assigneeOptions={assigneeOptions?.members}
-              currentUserId={currentUserId}
-            />
-          </div>
+          {board.canEdit && (
+            <div className="mb-4 space-y-3">
+              <QuickAddTask
+                workspaceId={board.id}
+                columnId={defaultColumnId}
+                assigneeOptions={members}
+                currentUserId={currentUserId}
+              />
+              {members.length > 1 && <AssigneePalette users={members} />}
+            </div>
+          )}
 
           {board.tasks.length === 0 ? (
             <p className="text-sm text-slate-500">No open tasks on this board yet.</p>
           ) : kanbanOnExpand ? (
             <MobileBoardStrip board={board} onTaskClick={onTaskClick} />
           ) : (
-            <div className="space-y-2">
-              {board.tasks.map((task) => (
-                <TaskListRow
-                  key={task.id}
-                  task={task}
-                  showColumn
-                  onClick={() => onTaskClick(task.id)}
-                />
-              ))}
-            </div>
+            <>
+              <BoardView
+                workspaceId={board.id}
+                columns={board.columnTasks}
+                onTaskClick={onTaskClick}
+                canEdit={board.canEdit}
+              />
+              <Link
+                href={`/boards/${board.id}`}
+                className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-brand-700 hover:text-brand-800"
+              >
+                Open full page
+                <span aria-hidden>→</span>
+              </Link>
+            </>
           )}
         </div>
       )}
@@ -313,6 +376,7 @@ export function InboxDashboard({
   teamsWithoutBoard: TeamOption[];
   boardAssigneeOptions: Record<string, BoardAssigneeOptions>;
 }) {
+  const router = useRouter();
   const [mobileTab, setMobileTab] = useState<MobileTab>("today");
   const [expandedBoards, setExpandedBoards] = useState<Set<string>>(new Set());
   const [showCreateBoard, setShowCreateBoard] = useState(false);
@@ -533,8 +597,27 @@ export function InboxDashboard({
 
         <section className="mb-8 sm:mb-10">
           <SectionHeader
+            title="My personal tasks"
+            description="Private inbox — grouped by due date."
+            icon={<IconInbox size={17} />}
+          />
+          <div className="mb-4">
+            <QuickAddTask workspaceId={personalWorkspaceId} currentUserId={currentUserId} />
+          </div>
+          <TaskListView
+            tasks={personalTasks}
+            columns={personalColumns}
+            users={users}
+            canEdit
+            onTaskClick={setSelectedId}
+            currentUserId={currentUserId}
+          />
+        </section>
+
+        <section className="mb-8 sm:mb-10">
+          <SectionHeader
             title="Boards"
-            description="Team and shared workspaces — tap to expand, add tasks, and assign people."
+            description="Expand a board for the full kanban view — drag tasks, assign people, and more."
             icon={<IconBoard size={17} />}
             titleTrailing={
               <button
@@ -557,25 +640,6 @@ export function InboxDashboard({
 
         <ExternalSharedSection tasks={externalShared} onTaskClick={setSelectedId} />
         <SharedUpcomingSection tasks={sharedUpcoming} onTaskClick={setSelectedId} />
-
-        <section className="mb-8 sm:mb-10">
-          <SectionHeader
-            title="My personal tasks"
-            description="Private inbox — grouped by due date."
-            icon={<IconInbox size={17} />}
-          />
-          <div className="mb-4">
-            <QuickAddTask workspaceId={personalWorkspaceId} currentUserId={currentUserId} />
-          </div>
-          <TaskListView
-            tasks={personalTasks}
-            columns={personalColumns}
-            users={users}
-            canEdit
-            onTaskClick={setSelectedId}
-            currentUserId={currentUserId}
-          />
-        </section>
       </div>
 
       <TaskDetailModal
@@ -583,7 +647,10 @@ export function InboxDashboard({
         columns={modalColumns}
         users={users}
         open={!!selectedId}
-        onClose={() => setSelectedId(null)}
+        onClose={() => {
+          setSelectedId(null);
+          router.refresh();
+        }}
         canEdit
         workspaceType={modalWorkspaceType}
         boardMemberUsers={modalAssignees?.members}

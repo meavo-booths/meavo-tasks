@@ -38,3 +38,15 @@ export function sortTasksForPreview(tasks: TaskWithRelations[]) {
     return dueRank(a) - dueRank(b);
   });
 }
+
+export function groupTasksByColumns(
+  columns: { id: string; name: string }[],
+  tasks: TaskWithRelations[]
+) {
+  return columns.map((column) => ({
+    ...column,
+    tasks: tasks
+      .filter((task) => task.columnId === column.id)
+      .sort((a, b) => a.position - b.position),
+  }));
+}

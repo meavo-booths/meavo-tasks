@@ -7,7 +7,8 @@ import {
 import { addDays, isBefore, isSameDay, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceAccess, getTaskAccess } from "@/lib/domain/task-authz";
-import { sortTasksForPreview } from "@/lib/task-sort";
+import { groupTasksByColumns, sortTasksForPreview } from "@/lib/task-sort";
+import { collectWorkspaceAssigneeOptions } from "@/lib/domain/workspace-members";
 
 const UPCOMING_DAYS = 3;
 
@@ -149,6 +150,12 @@ export async function getWorkspaceOpenTasks(workspaceId: string) {
   });
 }
 
+export type BoardColumnTasks = {
+  id: string;
+  name: string;
+  tasks: TaskWithRelations[];
+};
+
 export type BoardDashboardSummary = {
   id: string;
   name: string;
@@ -161,7 +168,11 @@ export type BoardDashboardSummary = {
   urgentCount: number;
   inProgressCount: number;
   columns: { id: string; name: string }[];
+  columnTasks: BoardColumnTasks[];
   tasks: TaskWithRelations[];
+  canEdit: boolean;
+  assigneeOptions: { id: string; name: string | null; email: string }[];
+  defaultColumnId: string | null;
 };
 
 export async function getBoardDashboardSummaries(
@@ -173,13 +184,13 @@ export async function getBoardDashboardSummaries(
   if (boards.length === 0) return [];
 
   const boardIds = boards.map((b) => b.id);
-  const [tasks, columns] = await Promise.all([
+  const [tasks, columns, workspaceDetails, accessResults] = await Promise.all([
     prisma.task.findMany({
       where: {
         workspaceId: { in: boardIds },
         status: TaskStatus.OPEN,
       },
-      orderBy: [{ dueDate: "asc" }, { position: "asc" }],
+      orderBy: { position: "asc" },
       include: {
         ...taskInclude,
         workspace: { select: { id: true, name: true, type: true } },
@@ -190,7 +201,31 @@ export async function getBoardDashboardSummaries(
       orderBy: { position: "asc" },
       select: { id: true, name: true, workspaceId: true },
     }),
+    prisma.taskWorkspace.findMany({
+      where: { id: { in: boardIds } },
+      include: {
+        owner: { select: { id: true, name: true, email: true } },
+        members: {
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
+        team: {
+          include: {
+            members: {
+              include: {
+                user: { select: { id: true, name: true, email: true } },
+              },
+            },
+          },
+        },
+      },
+    }),
+    Promise.all(boards.map((board) => getWorkspaceAccess(userId, board.id, systemRole))),
   ]);
+
+  const workspaceById = new Map(workspaceDetails.map((workspace) => [workspace.id, workspace]));
+  const accessById = new Map(boards.map((board, index) => [board.id, accessResults[index]]));
 
   const today = startOfDay(new Date());
   const soonEnd = addDays(today, UPCOMING_DAYS);
@@ -218,6 +253,12 @@ export async function getBoardDashboardSummaries(
       }
     }
 
+    const boardColumns = columns
+      .filter((col) => col.workspaceId === board.id)
+      .map((col) => ({ id: col.id, name: col.name }));
+    const workspace = workspaceById.get(board.id);
+    const access = accessById.get(board.id);
+
     return {
       id: board.id,
       name: board.name,
@@ -229,10 +270,13 @@ export async function getBoardDashboardSummaries(
       dueSoonCount,
       urgentCount,
       inProgressCount,
-      columns: columns
-        .filter((col) => col.workspaceId === board.id)
-        .map((col) => ({ id: col.id, name: col.name })),
+      columns: boardColumns,
+      columnTasks: groupTasksByColumns(boardColumns, boardTasks),
       tasks: sortTasksForPreview(boardTasks),
+      canEdit: access?.canEdit ?? false,
+      assigneeOptions: workspace ? collectWorkspaceAssigneeOptions(workspace) : [],
+      defaultColumnId:
+        boardColumns.find((col) => col.name === "To Do")?.id ?? boardColumns[0]?.id ?? null,
     };
   });
 }
