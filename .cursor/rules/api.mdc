@@ -1,0 +1,40 @@
+---
+description: API routes and Server Actions for meavo-tasks
+globs:
+  - src/app/api/**
+  - src/app/actions/**
+---
+
+# API & Server Action rules
+
+Keep handlers **thin** — validate input, call `src/lib/domain/` (or `src/lib/settings/` / `src/lib/integrations/`), map errors to action responses.
+
+## Auth
+
+- Every Server Action starts with `getTasksUser()` from `src/lib/access.ts` and returns `{ error }` when it fails — copy the `requireUser()` helper pattern in `src/app/actions/tasks.ts`.
+- Board/task-level checks via `requireWorkspaceEdit` / `requireTaskEdit` (`src/lib/domain/task-authz.ts`) after the app gate.
+- Cron routes: `isAuthorizedCronRequest(request)` (`src/lib/cron-auth.ts`) → 401 before anything else.
+- Never import edge-incompatible `src/lib/auth.ts` in `middleware.ts` — use `src/lib/auth.config.ts`.
+
+## Validation
+
+- FormData fields are trimmed and checked inline; enums parsed against Prisma enums (`parsePriority`, `parseLinkedApp`) — return `{ error: "…" }` for bad input, don't throw.
+- Config/env is read via `src/lib/tasks-config.ts` and direct `process.env` in crons (no zod in this repo).
+
+## Responses
+
+- Server Actions return `ActionResult = { error?: string, … }` — user-facing message, no stack traces.
+- Call `revalidatePath()` for every affected route after a write (inbox `/`, board `/boards/[id]`, list view).
+- API routes return `NextResponse.json`; cron handlers report `{ ok, sent/skipped }`.
+
+## Cron routes (see vercel.json)
+
+- `/api/cron/task-digest` — weekdays 07:00 UTC, org-wide Slack digest to `SLACK_TASK_DIGEST_WEBHOOK_URL`.
+- `/api/cron/personal-slack-digest` — weekdays 07:00 UTC, per-user digests to each user's own webhook.
+- New REST endpoints only for cron / health / auth — everything else is a Server Action.
+
+## Do NOT
+
+- Put business rules inline in route handlers
+- Skip auth on routes exposed to the internet
+- Return stack traces to clients in production

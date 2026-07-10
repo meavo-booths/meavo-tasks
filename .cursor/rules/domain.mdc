@@ -1,0 +1,25 @@
+---
+description: Domain layer patterns for meavo-tasks
+globs:
+  - src/lib/domain/**
+---
+
+# Domain module rules
+
+Business logic lives here — **not** in route handlers, React components, or API route files.
+
+## Patterns
+
+1. Authorization first: mutations call `requireWorkspaceEdit(userId, workspaceId, systemRole)` or `requireTaskEdit(userId, taskId, systemRole)` from `task-authz.ts` before any write; these throw `Error("Forbidden")`.
+2. Access results are structured: `getWorkspaceAccess` / `getTaskAccess` return `{ canView, canEdit, role }` — extend these rather than adding ad-hoc checks in actions.
+3. `workspace-bootstrap.ts` owns personal-workspace creation and default columns (`DEFAULT_COLUMNS` in `src/lib/tasks-config.ts`) — reuse `ensurePersonalWorkspace()`, don't re-create inline.
+4. External (task-only) assignees are `TaskAssignee.scope === "EXTERNAL"` — they can view but never edit; keep this invariant when touching `task-authz.ts`.
+5. Reuse existing modules — search `src/lib/domain/` before adding new files.
+
+## File naming
+
+`task-authz.ts`, `task-queries.ts`, `workspace-bootstrap.ts`, `workspace-members.ts` — kebab-case noun-concern, one concern per file.
+
+## Mutation map
+
+See `docs/domain.md` for persona permissions and status transitions.
