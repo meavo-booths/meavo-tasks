@@ -43,3 +43,6 @@ next-env.d.ts
 /prisma/*.db
 /prisma/*.db-journal
 .env*
+
+# allow the committed template (names only, no values)
+!.env.example
