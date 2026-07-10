@@ -315,18 +315,21 @@ export function InboxDashboard({
         <SectionHeader
           title="Boards"
           description="Team and shared workspaces — tap to expand, add tasks, and assign people."
-          icon={<IconBoard size={18} />}
-          action={
-            <Button
+          icon={<IconBoard size={17} />}
+          titleTrailing={
+            <button
               type="button"
-              variant="secondary"
-              size="sm"
               onClick={() => setShowCreateBoard((value) => !value)}
-              className="w-full sm:w-auto"
+              aria-label={showCreateBoard ? "Hide new board form" : "Create new board"}
+              aria-expanded={showCreateBoard}
+              className={`touch-target flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition ${
+                showCreateBoard
+                  ? "border-brand-300 bg-brand-50 text-brand-700"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 active:bg-brand-50"
+              }`}
             >
-              <IconPlus size={14} />
-              {showCreateBoard ? "Hide" : "New board"}
-            </Button>
+              <IconPlus size={16} />
+            </button>
           }
         />
 
@@ -380,7 +383,7 @@ export function InboxDashboard({
         <SectionHeader
           title="My personal tasks"
           description="Private inbox — grouped by due date."
-          icon={<IconInbox size={18} />}
+          icon={<IconInbox size={17} />}
         />
         <div className="mb-4">
           <QuickAddTask workspaceId={personalWorkspaceId} currentUserId={currentUserId} />

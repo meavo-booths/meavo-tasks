@@ -190,22 +190,27 @@ export function SectionHeader({
   description,
   icon,
   action,
+  titleTrailing,
 }: {
   title: string;
   description?: string;
   icon?: ReactNode;
   action?: ReactNode;
+  titleTrailing?: ReactNode;
 }) {
   return (
-    <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-      <div className="flex min-w-0 items-start gap-3">
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         {icon && (
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
             {icon}
           </div>
         )}
-        <div>
-          <h2 className="section-title">{title}</h2>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="section-title">{title}</h2>
+            {titleTrailing}
+          </div>
           {description && <p className="section-subtitle">{description}</p>}
         </div>
       </div>

@@ -91,17 +91,11 @@
   }
 
   .stat-grid {
-    @apply mb-5 flex gap-2.5 overflow-x-auto pb-1 sm:mb-8 sm:grid sm:grid-cols-2 sm:gap-3 sm:overflow-visible sm:pb-0 md:grid-cols-3 lg:grid-cols-5;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-
-  .stat-grid::-webkit-scrollbar {
-    display: none;
+    @apply mb-5 hidden gap-3 sm:mb-8 sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5;
   }
 
   .stat-grid > * {
-    @apply min-w-[8.5rem] shrink-0 sm:min-w-0;
+    @apply min-w-0;
   }
 
   .kanban-scroll {
