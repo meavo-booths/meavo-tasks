@@ -16,8 +16,8 @@
     "schema": "node_modules/@meavo/db/prisma/schema.prisma"
   },
   "dependencies": {
-    "@meavo/db": "github:meavo-booths/meavo-db#v0.11.2",
-    "@meavo/navigation": "github:meavo-booths/meavo-navigation#v0.1.5",
+    "@meavo/db": "github:meavo-booths/meavo-db#v0.14.0",
+    "@meavo/navigation": "github:meavo-booths/meavo-navigation#v0.2.0",
     "@prisma/client": "^6.19.3",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",

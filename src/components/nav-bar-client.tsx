@@ -1,6 +1,11 @@
 "use client";
 
-import { MeavoNavBar, type NavLink, type ToolSwitcherState } from "@meavo/navigation";
+import {
+  MeavoNavBar,
+  type NavLink,
+  type NotificationsState,
+  type ToolSwitcherState,
+} from "@meavo/navigation";
 
 export function NavBarClient({
   links,
@@ -10,6 +15,7 @@ export function NavBarClient({
   userEmail,
   userImage,
   signOutAction,
+  notifications,
 }: {
   links: NavLink[];
   logoHref: string;
@@ -18,6 +24,7 @@ export function NavBarClient({
   userEmail: string | null | undefined;
   userImage?: string | null;
   signOutAction: () => void | Promise<void>;
+  notifications?: NotificationsState;
 }) {
   return (
     <MeavoNavBar
@@ -28,6 +35,7 @@ export function NavBarClient({
       userEmail={userEmail}
       userImage={userImage}
       signOutAction={signOutAction}
+      notifications={notifications}
       isActiveLink={(pathname, href) =>
         href === "/"
           ? pathname === "/"
