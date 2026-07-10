@@ -3,7 +3,9 @@
 import { useMemo, useRef, useState } from "react";
 import { format, isSameDay } from "date-fns";
 import { CreateBoardForms } from "@/components/create-board-forms";
-import { MobileBottomNav, type MobileTab } from "@/components/mobile-bottom-nav";
+import { MobileBoardStrip } from "@/components/mobile-board-strip";
+import { MobileBottomNav, MobileFab, type MobileTab } from "@/components/mobile-bottom-nav";
+import { PriorityHighlightSection } from "@/components/priority-highlight-section";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { TaskListRow } from "@/components/task-list-row";
 import { TaskListView } from "@/components/task-list-view";
@@ -48,6 +50,7 @@ function BoardSummaryCard({
   onTaskClick,
   assigneeOptions,
   currentUserId,
+  kanbanOnExpand = false,
 }: {
   board: BoardDashboardSummary;
   expanded: boolean;
@@ -55,8 +58,10 @@ function BoardSummaryCard({
   onTaskClick: (taskId: string) => void;
   assigneeOptions?: BoardAssigneeOptions;
   currentUserId: string;
+  kanbanOnExpand?: boolean;
 }) {
-  const defaultColumnId = board.columns[0]?.id;
+  const defaultColumnId =
+    board.columns.find((c) => c.name === "To Do")?.id ?? board.columns[0]?.id;
 
   return (
     <Card padding={false} hover className="overflow-hidden">
@@ -114,6 +119,8 @@ function BoardSummaryCard({
 
           {board.tasks.length === 0 ? (
             <p className="text-sm text-slate-500">No open tasks on this board yet.</p>
+          ) : kanbanOnExpand ? (
+            <MobileBoardStrip board={board} onTaskClick={onTaskClick} />
           ) : (
             <div className="space-y-2">
               {board.tasks.map((task) => (
@@ -384,7 +391,7 @@ export function InboxDashboard({
     });
   }
 
-  const boardsSection = (
+  const boardsSection = (kanbanOnExpand = false) => (
     <>
       {showCreateBoard && (
         <div className="mb-4">
@@ -422,6 +429,7 @@ export function InboxDashboard({
               onTaskClick={setSelectedId}
               assigneeOptions={boardAssigneeOptions[board.id]}
               currentUserId={currentUserId}
+              kanbanOnExpand={kanbanOnExpand}
             />
           ))}
         </div>
@@ -449,10 +457,10 @@ export function InboxDashboard({
           </>
         )}
 
-        {mobileTab === "inbox" && (
+        {mobileTab === "personal" && (
           <>
-            <h1 className="mobile-screen-title">Inbox</h1>
-            <p className="mobile-screen-subtitle">Personal tasks</p>
+            <h1 className="mobile-screen-title">Personal</h1>
+            <p className="mobile-screen-subtitle">Your private tasks</p>
             <div ref={quickAddRef} className="mb-4">
               {(showMobileAdd || personalTasks.length === 0) && (
                 <QuickAddTask
@@ -493,7 +501,11 @@ export function InboxDashboard({
                 <IconPlus size={18} />
               </button>
             </div>
-            {boardsSection}
+            <PriorityHighlightSection
+              boards={boardSummaries}
+              onTaskClick={setSelectedId}
+            />
+            {boardsSection(true)}
           </>
         )}
 
@@ -503,14 +515,10 @@ export function InboxDashboard({
           todayCount={todayCount}
         />
 
-        <button
-          type="button"
+        <MobileFab
+          label={mobileTab === "shared" ? "Create new board" : "Add task"}
           onClick={handleMobileFab}
-          className="mobile-fab"
-          aria-label={mobileTab === "shared" ? "Create new board" : "Add task"}
-        >
-          <IconPlus size={22} />
-        </button>
+        />
       </div>
 
       {/* Desktop layout */}
@@ -544,7 +552,7 @@ export function InboxDashboard({
               </button>
             }
           />
-          {boardsSection}
+          {boardsSection(false)}
         </section>
 
         <ExternalSharedSection tasks={externalShared} onTaskClick={setSelectedId} />

@@ -100,6 +100,15 @@ export function IconUsers(props: IconProps) {
   );
 }
 
+export function IconUser(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20v-1a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v1" />
+    </Icon>
+  );
+}
+
 export function IconFlag(props: IconProps) {
   return (
     <Icon {...props}>

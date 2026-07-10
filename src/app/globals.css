@@ -156,7 +156,7 @@
   }
 
   .mobile-tab-bar {
-    @apply fixed inset-x-0 bottom-0 z-40 flex items-stretch justify-around border-t border-slate-200/80 bg-white/95 px-2 pt-1 backdrop-blur-md md:hidden;
+    @apply fixed inset-x-0 bottom-0 z-[100] flex items-stretch justify-around border-t border-slate-200 bg-white px-2 pt-1 md:hidden;
     padding-bottom: max(0.5rem, var(--safe-bottom));
   }
 
@@ -185,6 +185,17 @@
   }
 
   .mobile-fab {
-    @apply fixed bottom-[calc(4.5rem+var(--safe-bottom))] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg shadow-brand-600/30 transition active:scale-95 active:bg-brand-700 md:hidden;
+    @apply fixed bottom-[calc(4.5rem+var(--safe-bottom))] right-4 z-[100] flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg shadow-brand-600/30 transition active:scale-95 active:bg-brand-700 md:hidden;
+  }
+
+  .mobile-board-strip {
+    @apply -mx-4 flex gap-3 overflow-x-auto px-4 pb-2;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+  }
+
+  .mobile-board-strip__column {
+    @apply w-[min(78vw,18rem)] shrink-0 snap-center rounded-xl border border-slate-200/80 bg-white p-3;
   }
 }
