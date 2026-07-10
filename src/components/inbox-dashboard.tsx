@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
-import { format, isSameDay } from "date-fns";
+import { format } from "date-fns";
 import { AssigneePalette } from "@/components/assignee-palette";
 import { BoardView } from "@/components/board-view";
 import { CreateBoardForms } from "@/components/create-board-forms";
@@ -14,12 +14,11 @@ import { TaskDetailModal } from "@/components/task-detail-modal";
 import { TaskListRow } from "@/components/task-list-row";
 import { TaskListView } from "@/components/task-list-view";
 import { QuickAddTask } from "@/components/quick-add-task";
-import { PriorityBadge } from "@/components/priority-badge";
-import { DueDateBadge } from "@/components/due-date-badge";
 import { IconBoard, IconChevronDown, IconInbox, IconPlus } from "@/components/icons";
-import { Badge, Button, Card, EmptyState, SectionHeader, StatCard } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, SectionHeader } from "@/components/ui";
 import { DUE_GROUP_LABELS, groupTasksByDueDate } from "@/lib/dates";
 import type { BoardDashboardSummary, TaskWithRelations } from "@/lib/domain/task-queries";
+import { sortTasksByDeadlineAndUrgency } from "@/lib/task-sort";
 import { buildTodayTaskItems } from "@/lib/today-tasks";
 import { TaskWorkspaceType } from "@prisma/client";
 
@@ -202,105 +201,6 @@ function BoardSummaryCard({
   );
 }
 
-function SharedUpcomingSection({
-  tasks,
-  onTaskClick,
-}: {
-  tasks: SharedTask[];
-  onTaskClick: (taskId: string) => void;
-}) {
-  if (tasks.length === 0) return null;
-
-  const today = new Date();
-
-  return (
-    <section className="mb-8 sm:mb-10">
-      <SectionHeader
-        title="Coming up on boards"
-        description="Assigned to you — due today or in the next few days."
-        icon={<IconBoard size={18} />}
-      />
-      <div className="space-y-2">
-        {tasks.map((task) => (
-          <button
-            key={task.id}
-            type="button"
-            onClick={() => onTaskClick(task.id)}
-            className="flex w-full flex-col gap-2 rounded-xl border border-slate-200/80 bg-white px-3 py-3 text-left shadow-sm transition hover:border-slate-300 hover:shadow-card sm:flex-row sm:items-center sm:gap-3 sm:px-4"
-          >
-            <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-slate-300 sm:mt-0" />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium text-slate-900">{task.title}</p>
-                  <PriorityBadge priority={task.priority} />
-                </div>
-                <p className="mt-0.5 text-xs text-slate-500">{task.workspace.name}</p>
-              </div>
-            </div>
-            {task.dueDate &&
-              (isSameDay(task.dueDate, today) ? (
-                <DueDateBadge dueDate={task.dueDate} />
-              ) : (
-                <span className="shrink-0 pl-8 text-xs text-slate-500 sm:pl-0">
-                  {format(task.dueDate, "EEE, MMM d")}
-                </span>
-              ))}
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function ExternalSharedSection({
-  tasks,
-  onTaskClick,
-}: {
-  tasks: SharedTask[];
-  onTaskClick: (taskId: string) => void;
-}) {
-  if (tasks.length === 0) return null;
-
-  return (
-    <section className="mb-8 sm:mb-10">
-      <SectionHeader
-        title="Shared with you"
-        description="Individual tasks shared with you — not full board access."
-        icon={<IconInbox size={18} />}
-      />
-      <div className="space-y-2">
-        {tasks.map((task) => (
-          <button
-            key={task.id}
-            type="button"
-            onClick={() => onTaskClick(task.id)}
-            className="flex w-full flex-col gap-2 rounded-xl border border-dashed border-slate-300 bg-white px-3 py-3 text-left shadow-sm transition hover:border-slate-400 hover:shadow-card sm:flex-row sm:items-center sm:gap-3 sm:px-4"
-          >
-            <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-slate-300 sm:mt-0" />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium text-slate-900">{task.title}</p>
-                  <PriorityBadge priority={task.priority} />
-                </div>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  {task.workspace.name} · task only
-                </p>
-              </div>
-            </div>
-            {task.dueDate && (
-              <span className="shrink-0 pl-8 text-xs text-slate-500 sm:pl-0">
-                {format(task.dueDate, "EEE, MMM d")}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function MobileTodayView({
   items,
   onTaskClick,
@@ -396,6 +296,11 @@ export function InboxDashboard({
     [personalTasks, boardSummaries, sharedUpcoming, externalShared, currentUserId]
   );
 
+  const topPersonalTasks = useMemo(
+    () => sortTasksByDeadlineAndUrgency(personalTasks).slice(0, 5),
+    [personalTasks]
+  );
+
   const todayCount = todayItems.length;
 
   const allTasks = [
@@ -426,14 +331,6 @@ export function InboxDashboard({
   const modalAssignees = selectedTask
     ? boardAssigneeOptions[selectedTask.workspaceId]
     : undefined;
-
-  const stats = {
-    personal: personalTasks.length,
-    upcoming: sharedUpcoming.length,
-    external: externalShared.length,
-    boards: boardSummaries.length,
-    urgent: boardSummaries.reduce((sum, b) => sum + b.urgentCount, 0),
-  };
 
   function toggleBoard(boardId: string) {
     setExpandedBoards((prev) => {
@@ -587,37 +484,43 @@ export function InboxDashboard({
 
       {/* Desktop layout */}
       <div className="hidden md:block">
-        <div className="stat-grid">
-          <StatCard label="Personal tasks" value={stats.personal} />
-          <StatCard label="Board deadlines" value={stats.upcoming} tone="warning" />
-          <StatCard label="Shared task-only" value={stats.external} tone="brand" />
-          <StatCard label="Active boards" value={stats.boards} tone="brand" />
-          <StatCard label="Urgent / high" value={stats.urgent} tone="danger" />
-        </div>
+        <section className="mb-8 sm:mb-10">
+          <SectionHeader title="Today" icon={<IconInbox size={17} />} />
+          <MobileTodayView items={todayItems} onTaskClick={setSelectedId} />
+        </section>
 
         <section className="mb-8 sm:mb-10">
-          <SectionHeader
-            title="My personal tasks"
-            description="Private inbox — grouped by due date."
-            icon={<IconInbox size={17} />}
-          />
+          <SectionHeader title="My tasks" icon={<IconInbox size={17} />} />
           <div className="mb-4">
             <QuickAddTask workspaceId={personalWorkspaceId} currentUserId={currentUserId} />
           </div>
-          <TaskListView
-            tasks={personalTasks}
-            columns={personalColumns}
-            users={users}
-            canEdit
-            onTaskClick={setSelectedId}
-            currentUserId={currentUserId}
-          />
+          {topPersonalTasks.length === 0 ? (
+            <EmptyState
+              icon={<IconInbox size={28} />}
+              title="No personal tasks yet"
+              description="Add a task above to get started."
+            />
+          ) : (
+            <div className="space-y-2">
+              {topPersonalTasks.map((task) => (
+                <TaskListRow
+                  key={task.id}
+                  task={task}
+                  onClick={() => setSelectedId(task.id)}
+                />
+              ))}
+              {personalTasks.length > 5 && (
+                <p className="px-1 text-xs text-slate-500">
+                  +{personalTasks.length - 5} more personal tasks
+                </p>
+              )}
+            </div>
+          )}
         </section>
 
         <section className="mb-8 sm:mb-10">
           <SectionHeader
             title="Boards"
-            description="Expand a board for the full kanban view — drag tasks, assign people, and more."
             icon={<IconBoard size={17} />}
             titleTrailing={
               <button
@@ -637,9 +540,6 @@ export function InboxDashboard({
           />
           {boardsSection(false)}
         </section>
-
-        <ExternalSharedSection tasks={externalShared} onTaskClick={setSelectedId} />
-        <SharedUpcomingSection tasks={sharedUpcoming} onTaskClick={setSelectedId} />
       </div>
 
       <TaskDetailModal

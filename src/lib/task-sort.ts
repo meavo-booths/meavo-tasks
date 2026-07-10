@@ -1,3 +1,4 @@
+import { isBefore, isSameDay, startOfDay } from "date-fns";
 import { TaskPriority } from "@prisma/client";
 import type { TaskWithRelations } from "@/lib/domain/task-queries";
 
@@ -24,6 +25,31 @@ function columnRank(name: string | undefined | null) {
 function dueRank(task: TaskWithRelations) {
   if (!task.dueDate) return Number.MAX_SAFE_INTEGER;
   return task.dueDate.getTime();
+}
+
+function dueGroupRank(task: TaskWithRelations) {
+  if (!task.dueDate) return 3;
+  const today = startOfDay(new Date());
+  const due = startOfDay(task.dueDate);
+  if (isBefore(due, today)) return 0;
+  if (isSameDay(due, today)) return 1;
+  return 2;
+}
+
+/** Personal task ordering: overdue and soonest deadlines first, then priority. */
+export function sortTasksByDeadlineAndUrgency(tasks: TaskWithRelations[]) {
+  return [...tasks].sort((a, b) => {
+    const groupDiff = dueGroupRank(a) - dueGroupRank(b);
+    if (groupDiff !== 0) return groupDiff;
+
+    const dueDiff = dueRank(a) - dueRank(b);
+    if (dueDiff !== 0) return dueDiff;
+
+    const priorityDiff = PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
+    if (priorityDiff !== 0) return priorityDiff;
+
+    return a.title.localeCompare(b.title);
+  });
 }
 
 /** Sort board preview tasks: in-progress first, backlog last; urgent before low within each group. */

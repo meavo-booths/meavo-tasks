@@ -53,10 +53,7 @@ export default async function DashboardPage() {
   return (
     <>
       <div className="hidden md:block">
-        <PageHeader
-          title="Dashboard"
-          description="Your tasks, team boards, and upcoming deadlines in one place."
-        />
+        <PageHeader title="Dashboard" />
       </div>
       <InboxDashboard
         personalWorkspaceId={workspace.id}
