@@ -14,7 +14,10 @@ const MEAVO_APP_KEY = isMeavoAppKey(process.env.MEAVO_APP_KEY)
   : "tasks";
 const GATEWAY_URL = resolveGatewayUrl(process.env.GATEWAY_URL);
 
-const links = [{ href: "/", label: "Dashboard" }];
+const links = [
+  { href: "/", label: "Dashboard" },
+  { href: "/settings", label: "Settings" },
+];
 
 export async function Nav() {
   const session = await auth();
@@ -40,6 +43,11 @@ export async function Nav() {
       userEmail={session.user.email}
       userImage={session.user.image}
       signOutAction={signOutAction}
+      isActiveLink={(pathname, href) =>
+        href === "/"
+          ? pathname === "/"
+          : pathname === href || pathname.startsWith(`${href}/`)
+      }
     />
   );
 }

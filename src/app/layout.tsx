@@ -6,6 +6,12 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Tasks",
   description: "Team task management for Meavo",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Tasks",
+    statusBarStyle: "default",
+  },
 };
 
 export const viewport: Viewport = {

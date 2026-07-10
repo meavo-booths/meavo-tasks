@@ -119,6 +119,18 @@ async function main() {
 
     await applyAssigneeScopeMigration(prisma);
 
+    const settingsTable = await prisma.$queryRaw`
+      SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = 'TaskUserSettings'
+      LIMIT 1
+    `;
+    if (!Array.isArray(settingsTable) || settingsTable.length === 0) {
+      console.log("bootstrap-db: applying task user settings migration…");
+      await applySqlFile("scripts/add-task-user-settings.sql");
+    } else {
+      console.log("bootstrap-db: task user settings already present.");
+    }
+
     console.log("bootstrap-db: seeding tool card and granting team access…");
     await seedToolCardAndAccess(prisma);
     console.log("bootstrap-db: done.");
