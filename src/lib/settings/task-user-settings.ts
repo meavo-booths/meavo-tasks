@@ -1,55 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { IntegrationProvider, TaskIntegrationRow, TaskUserSettingsRow } from "./types";
-
-export async function getTaskUserSettings(userId: string): Promise<TaskUserSettingsRow> {
-  try {
-    const rows = await prisma.$queryRaw<TaskUserSettingsRow[]>`
-      SELECT "userId", "slackNotificationsEnabled", "slackWebhookUrl"
-      FROM "TaskUserSettings"
-      WHERE "userId" = ${userId}
-      LIMIT 1
-    `;
-
-    if (rows[0]) return rows[0];
-  } catch (error) {
-    console.error("getTaskUserSettings failed:", error);
-  }
-
-  return {
-    userId,
-    slackNotificationsEnabled: false,
-    slackWebhookUrl: null,
-  };
-}
-
-export async function upsertTaskUserSettings(
-  userId: string,
-  data: {
-    slackNotificationsEnabled: boolean;
-    slackWebhookUrl: string | null;
-  }
-) {
-  await prisma.$executeRaw`
-    INSERT INTO "TaskUserSettings" ("userId", "slackNotificationsEnabled", "slackWebhookUrl", "updatedAt")
-    VALUES (${userId}, ${data.slackNotificationsEnabled}, ${data.slackWebhookUrl}, CURRENT_TIMESTAMP)
-    ON CONFLICT ("userId") DO UPDATE SET
-      "slackNotificationsEnabled" = EXCLUDED."slackNotificationsEnabled",
-      "slackWebhookUrl" = EXCLUDED."slackWebhookUrl",
-      "updatedAt" = CURRENT_TIMESTAMP
-  `;
-}
-
-export async function listUsersWithSlackNotifications() {
-  return prisma.$queryRaw<
-    { userId: string; slackWebhookUrl: string }[]
-  >`
-    SELECT "userId", "slackWebhookUrl"
-    FROM "TaskUserSettings"
-    WHERE "slackNotificationsEnabled" = true
-      AND "slackWebhookUrl" IS NOT NULL
-      AND trim("slackWebhookUrl") <> ''
-  `;
-}
+import type { IntegrationProvider, TaskIntegrationRow } from "./types";
 
 export async function getTaskIntegration(
   userId: string,

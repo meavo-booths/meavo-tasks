@@ -6,31 +6,21 @@ import { getTasksUser } from "@/lib/access";
 import {
   deleteTaskIntegration,
   getTaskIntegration,
-  getTaskUserSettings,
   listTaskIntegrations,
   upsertTaskIntegration,
-  upsertTaskUserSettings,
 } from "@/lib/settings/task-user-settings";
 import { exportTasksToTodoist } from "@/lib/settings/todoist-sync";
 import type { IntegrationProvider } from "@/lib/settings/types";
 
 type ActionResult = { error?: string; success?: string };
 
-function isValidSlackWebhook(url: string) {
-  return url.startsWith("https://hooks.slack.com/");
-}
-
 export async function getSettingsData() {
   const access = await getTasksUser();
   if (!access.ok) return null;
 
-  const [settings, integrations] = await Promise.all([
-    getTaskUserSettings(access.user.id),
-    listTaskIntegrations(access.user.id),
-  ]);
+  const integrations = await listTaskIntegrations(access.user.id);
 
   return {
-    settings,
     integrations: integrations.map((row) => ({
       provider: row.provider as IntegrationProvider,
       enabled: row.enabled,
@@ -38,33 +28,6 @@ export async function getSettingsData() {
       connected: !!row.accessToken,
     })),
   };
-}
-
-export async function saveSlackSettings(
-  _prev: ActionResult,
-  formData: FormData
-): Promise<ActionResult> {
-  const access = await getTasksUser();
-  if (!access.ok) return { error: access.error };
-
-  const enabled = formData.get("slackNotificationsEnabled") === "on";
-  const webhookUrl = String(formData.get("slackWebhookUrl") ?? "").trim();
-
-  if (enabled && !webhookUrl) {
-    return { error: "Add a Slack webhook URL to enable personal notifications." };
-  }
-
-  if (webhookUrl && !isValidSlackWebhook(webhookUrl)) {
-    return { error: "Slack webhook URL must start with https://hooks.slack.com/" };
-  }
-
-  await upsertTaskUserSettings(access.user.id, {
-    slackNotificationsEnabled: enabled,
-    slackWebhookUrl: webhookUrl || null,
-  });
-
-  revalidatePath("/settings");
-  return { success: "Slack notification settings saved." };
 }
 
 export async function connectIntegration(

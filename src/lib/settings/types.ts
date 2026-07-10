@@ -1,11 +1,5 @@
 export type IntegrationProvider = "TODOIST" | "TICKTICK" | "GOOGLE_TASKS";
 
-export type TaskUserSettingsRow = {
-  userId: string;
-  slackNotificationsEnabled: boolean;
-  slackWebhookUrl: string | null;
-};
-
 export type TaskIntegrationRow = {
   id: string;
   userId: string;
