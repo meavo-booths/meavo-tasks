@@ -43,3 +43,14 @@ Optional: `SLACK_TASK_DIGEST_WEBHOOK_URL`, `TASK_DIGEST_TIMEZONE`, `CRON_SECRET`
 ## Deployment
 
 Create a Vercel project at `tasks.meavo.app` with the same env vars as production gateway (`DATABASE_URL`, `AUTH_SECRET`, etc.).
+
+## Documentation
+
+| Doc | Purpose |
+|-----|---------|
+| [AGENTS.md](AGENTS.md) | Quick orientation for AI coding agents |
+| [.cursor/rules/](.cursor/rules/) | Always-on Cursor rules (stack, security, UI) |
+| [docs/architecture.md](docs/architecture.md) | Stack, layout, data flow |
+| [docs/domain.md](docs/domain.md) | Business rules, personas, mutation map |
+| [docs/data-model.md](docs/data-model.md) | Database tables |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | PR process |

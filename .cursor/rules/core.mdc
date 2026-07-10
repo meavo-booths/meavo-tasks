@@ -1,0 +1,58 @@
+---
+description: Core stack, layout, and guardrails for meavo-tasks
+alwaysApply: true
+---
+
+Environment: Next.js 15 App Router app at tasks.meavo.app — Meavo team task management (inbox + kanban boards). Satellite of the meavo-gateway ecosystem on a shared Neon Postgres.
+
+## Stack
+
+- Next.js 15 App Router, React 19, TypeScript, Tailwind CSS 3
+- Prisma 6 via `@meavo/db` (shared Neon Postgres, schema owned by the meavo-db repo)
+- NextAuth v5 JWT — Credentials + invite-only Google, gated on the Tasks tool card
+- `@meavo/navigation` shared top nav; hosted on Vercel
+
+## Do NOT
+
+- Edit the Prisma schema here — it lives in **meavo-db**; bump the `@meavo/db` git ref in `package.json`
+- Run `prisma db push` (intentionally disabled — shared DB)
+- Write to other apps' tables (`Deal`, `FactoryProductionBatch`, `RpRequest`, `Assembly`) — read-only for link resolution
+- Look up the tool card by `linkedAppKey` — use `TASKS_CARD_ID` from `src/lib/tasks-config.ts`
+- Import `src/lib/auth.ts` in `middleware.ts` (edge) — use `src/lib/auth.config.ts`
+- Add external component libraries (shadcn/Radix/MUI) — use `src/components/ui.tsx`
+- Build a custom top nav — shell comes from `@meavo/navigation`
+- Skip `CRON_SECRET` auth on `/api/cron/*`
+- Commit secrets or `.env.local`
+
+## Code layout
+
+| Area | Path |
+|------|------|
+| Authenticated pages | `src/app/(app)/` — inbox `page.tsx`, `boards/`, `settings/` |
+| Public login | `src/app/login/` |
+| Server Actions (mutations) | `src/app/actions/` |
+| API routes (auth, cron, health only) | `src/app/api/` |
+| Domain logic (authz, queries, bootstrap) | `src/lib/domain/` |
+| Integrations (Slack, Todoist, cross-app links) | `src/lib/integrations/` |
+| Per-user settings & digests | `src/lib/settings/` |
+| Auth & tool-card gate | `src/lib/auth.ts`, `src/lib/access.ts`, `src/middleware.ts` |
+| UI kit + feature components | `src/components/` (`ui.tsx`, `modal.tsx`) |
+| Tests | N/A — no test suite |
+
+## Data flow
+
+```
+Browser → Server Action (src/app/actions/*)
+        → getTasksUser() gate → task-authz check → Prisma (@meavo/db → shared Neon)
+        → revalidatePath()
+Vercel cron (weekdays 07:00) → /api/cron/* → Prisma → Slack webhook
+```
+
+Slack side effects are fire-and-forget (`.catch(console.error)`). Email must be enqueued to `NotificationOutbox` (`src/lib/notifications/enqueue.ts`) — only gateway sends.
+
+## Docs for agents
+
+- `AGENTS.md` — quick orientation
+- `docs/architecture.md` — stack, siblings, data flow
+- `docs/domain.md` — business rules, mutation map
+- `docs/data-model.md` — database tables

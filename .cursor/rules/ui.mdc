@@ -1,0 +1,46 @@
+---
+description: Meavo UI standards (desktop + mobile) for meavo-tasks
+globs:
+  - src/app/**
+  - src/components/**
+---
+
+# UI rules — Meavo design system
+
+Org standard (see STANDARDS.md §5 in meavo-agent-templates). Deviations for this repo are listed at the bottom. Palette reference: `.cursor/rules/meavo-style-guide.mdc`.
+
+## Components
+
+- Use the in-house kit in `src/components/ui.tsx`: `Card`, `Button` (primary/secondary/danger/ghost), `Input`, `Select`, `Badge`, `PageHeader`, `SectionHeader`, `EmptyState`, `StatCard`. Modal lives in `src/components/modal.tsx`.
+- Do NOT add shadcn, Radix, MUI, or any external component library.
+- Top nav and tool switcher come from `@meavo/navigation` (`src/components/nav.tsx` / `nav-bar-client.tsx`) — do not build a custom header.
+
+## Palette & visual language
+
+- Primary actions: brand green `bg-brand-600 hover:bg-brand-700` (defined in `tailwind.config.ts`).
+- Neutrals: Tailwind `slate` scale. Errors: `text-sm text-red-600`.
+- Cards: `rounded-xl border border-slate-200 bg-white` with the custom `shadow-card` / `shadow-card-hover` tokens.
+- Page titles: `text-xl sm:text-2xl font-semibold text-slate-900`. Body: `text-sm text-slate-600`.
+- Focus: `focus:ring-brand-100 focus:border-brand-500`.
+- Priority colors are centralized in `PRIORITY_META` (`src/lib/tasks-config.ts`) — reuse, don't restyle inline.
+
+## Responsive (required on every page)
+
+- Mobile-first: style for narrow viewport, add `sm:` / `lg:` overrides upward.
+- Main container: the `.app-container` utility class from `src/app/globals.css` (applied in `src/app/(app)/layout.tsx`) — includes safe-area insets for the PWA; don't replace with ad-hoc containers.
+- Mobile gets dedicated affordances: `mobile-bottom-nav.tsx`, `mobile-board-strip.tsx`, `use-media-query.ts` — extend these rather than hiding features behind hover.
+- Wide tables/boards degrade on mobile — stacked cards or `overflow-x-auto`, never clipped columns.
+- Touch targets ≥ 44px; no hover-only affordances for critical actions.
+- Check new pages at 375px and 1280px before opening a PR.
+
+## Rendering
+
+- Server Components by default; `"use client"` only for interactive leaves (board, modals, pickers, forms).
+- `loading.tsx` skeletons (`animate-pulse` slate blocks) in feature route folders — see `src/app/(app)/loading.tsx`.
+- Modals: use `src/components/modal.tsx` (focus trap, Escape, `role="dialog"`).
+
+## Repo-specific deviations
+
+- Main container is the `.app-container` CSS class (`max-w-7xl` + safe-area padding) instead of the org's inline `max-w-6xl` classes — the app is installable as a PWA (`public/manifest.webmanifest`).
+- The kit has no `Textarea` component; adds `Badge`, `SectionHeader`, `EmptyState`, `StatCard`.
+- Shared page-shell classes (`page-header`, `section-title`, …) live in `src/app/globals.css` `@layer components`.
