@@ -154,4 +154,37 @@
   .touch-target {
     @apply min-h-[44px] min-w-[44px];
   }
+
+  .mobile-tab-bar {
+    @apply fixed inset-x-0 bottom-0 z-40 flex items-stretch justify-around border-t border-slate-200/80 bg-white/95 px-2 pt-1 backdrop-blur-md md:hidden;
+    padding-bottom: max(0.5rem, var(--safe-bottom));
+  }
+
+  .mobile-tab-bar__item {
+    @apply flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-2 text-slate-500 transition active:bg-slate-100;
+  }
+
+  .mobile-tab-bar__item--active {
+    @apply bg-brand-50 text-brand-700;
+  }
+
+  .mobile-tab-bar__label {
+    @apply text-[10px] font-medium leading-tight;
+  }
+
+  .mobile-screen-title {
+    @apply mb-5 text-3xl font-bold tracking-tight text-slate-900;
+  }
+
+  .mobile-screen-subtitle {
+    @apply -mt-3 mb-5 text-sm text-slate-500;
+  }
+
+  .mobile-dashboard {
+    @apply pb-24 md:pb-0;
+  }
+
+  .mobile-fab {
+    @apply fixed bottom-[calc(4.5rem+var(--safe-bottom))] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg shadow-brand-600/30 transition active:scale-95 active:bg-brand-700 md:hidden;
+  }
 }

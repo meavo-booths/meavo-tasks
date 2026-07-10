@@ -8,10 +8,12 @@ export function TaskListRow({
   task,
   onClick,
   showColumn,
+  sourceLabel,
 }: {
   task: TaskWithRelations;
   onClick?: () => void;
   showColumn?: boolean;
+  sourceLabel?: string;
 }) {
   if (!task) return null;
 
@@ -36,6 +38,12 @@ export function TaskListRow({
           </div>
           {task.description && (
             <p className="mt-0.5 line-clamp-2 text-xs text-slate-500 sm:truncate">{task.description}</p>
+          )}
+          {sourceLabel && (
+            <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-slate-400" />
+              {sourceLabel}
+            </p>
           )}
         </div>
       </div>

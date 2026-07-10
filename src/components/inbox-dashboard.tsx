@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { format, isSameDay } from "date-fns";
 import { CreateBoardForms } from "@/components/create-board-forms";
+import { MobileBottomNav, type MobileTab } from "@/components/mobile-bottom-nav";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { TaskListRow } from "@/components/task-list-row";
 import { TaskListView } from "@/components/task-list-view";
@@ -10,8 +11,10 @@ import { QuickAddTask } from "@/components/quick-add-task";
 import { PriorityBadge } from "@/components/priority-badge";
 import { DueDateBadge } from "@/components/due-date-badge";
 import { IconBoard, IconChevronDown, IconInbox, IconPlus } from "@/components/icons";
-import { Badge, Button, Card, SectionHeader, StatCard } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, SectionHeader, StatCard } from "@/components/ui";
+import { DUE_GROUP_LABELS, groupTasksByDueDate } from "@/lib/dates";
 import type { BoardDashboardSummary, TaskWithRelations } from "@/lib/domain/task-queries";
+import { buildTodayTaskItems } from "@/lib/today-tasks";
 import { TaskWorkspaceType } from "@prisma/client";
 
 type UserOption = { id: string; name: string | null; email: string };
@@ -228,6 +231,58 @@ function ExternalSharedSection({
   );
 }
 
+function MobileTodayView({
+  items,
+  onTaskClick,
+}: {
+  items: ReturnType<typeof buildTodayTaskItems>;
+  onTaskClick: (taskId: string) => void;
+}) {
+  const tasks = items.map((item) => item.task);
+  const groups = groupTasksByDueDate(tasks);
+  const sourceById = Object.fromEntries(items.map((item) => [item.task.id, item.sourceLabel]));
+  const hasTasks = groups.overdue.length > 0 || groups.today.length > 0;
+
+  if (!hasTasks) {
+    return (
+      <EmptyState
+        icon={<IconInbox size={28} />}
+        title="Nothing due today"
+        description="Personal and shared tasks due today or overdue will show up here."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {(["overdue", "today"] as const).map((key) => {
+        const sectionTasks = groups[key];
+        if (sectionTasks.length === 0) return null;
+        return (
+          <section key={key}>
+            <div className="mb-3 flex items-center gap-2">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
+                {DUE_GROUP_LABELS[key]}
+              </h3>
+              <Badge tone={key === "overdue" ? "danger" : "warning"}>{sectionTasks.length}</Badge>
+            </div>
+            <div className="space-y-2">
+              {sectionTasks.map((task) => (
+                <TaskListRow
+                  key={task.id}
+                  task={task}
+                  sourceLabel={sourceById[task.id]}
+                  onClick={() => onTaskClick(task.id)}
+                />
+              ))}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
 export function InboxDashboard({
   personalWorkspaceId,
   personalTasks,
@@ -251,9 +306,26 @@ export function InboxDashboard({
   teamsWithoutBoard: TeamOption[];
   boardAssigneeOptions: Record<string, BoardAssigneeOptions>;
 }) {
+  const [mobileTab, setMobileTab] = useState<MobileTab>("today");
   const [expandedBoards, setExpandedBoards] = useState<Set<string>>(new Set());
   const [showCreateBoard, setShowCreateBoard] = useState(false);
+  const [showMobileAdd, setShowMobileAdd] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const quickAddRef = useRef<HTMLDivElement>(null);
+
+  const todayItems = useMemo(
+    () =>
+      buildTodayTaskItems({
+        personalTasks,
+        boardSummaries,
+        sharedUpcoming,
+        externalShared,
+        currentUserId,
+      }),
+    [personalTasks, boardSummaries, sharedUpcoming, externalShared, currentUserId]
+  );
+
+  const todayCount = todayItems.length;
 
   const allTasks = [
     ...personalTasks,
@@ -301,102 +373,202 @@ export function InboxDashboard({
     });
   }
 
-  return (
+  function handleMobileFab() {
+    if (mobileTab === "shared") {
+      setShowCreateBoard(true);
+      return;
+    }
+    setShowMobileAdd(true);
+    requestAnimationFrame(() => {
+      quickAddRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  const boardsSection = (
     <>
-      <div className="stat-grid">
-        <StatCard label="Personal tasks" value={stats.personal} />
-        <StatCard label="Board deadlines" value={stats.upcoming} tone="warning" />
-        <StatCard label="Shared task-only" value={stats.external} tone="brand" />
-        <StatCard label="Active boards" value={stats.boards} tone="brand" />
-        <StatCard label="Urgent / high" value={stats.urgent} tone="danger" />
+      {showCreateBoard && (
+        <div className="mb-4">
+          <CreateBoardForms teamsWithoutBoard={teamsWithoutBoard} />
+        </div>
+      )}
+
+      {boardSummaries.length === 0 ? (
+        <Card className="text-center">
+          <p className="text-sm font-medium text-slate-700">No boards yet</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Create a team or shared board to collaborate with others.
+          </p>
+          {!showCreateBoard && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="mt-4"
+              onClick={() => setShowCreateBoard(true)}
+            >
+              <IconPlus size={14} />
+              Create a board
+            </Button>
+          )}
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {boardSummaries.map((board) => (
+            <BoardSummaryCard
+              key={board.id}
+              board={board}
+              expanded={expandedBoards.has(board.id)}
+              onToggle={() => toggleBoard(board.id)}
+              onTaskClick={setSelectedId}
+              assigneeOptions={boardAssigneeOptions[board.id]}
+              currentUserId={currentUserId}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  return (
+    <div className="mobile-dashboard">
+      {/* Mobile tab layout */}
+      <div className="md:hidden">
+        {mobileTab === "today" && (
+          <>
+            <h1 className="mobile-screen-title">Today</h1>
+            <p className="mobile-screen-subtitle">{format(new Date(), "d MMM · EEEE")}</p>
+            {showMobileAdd && (
+              <div ref={quickAddRef} className="mb-4">
+                <QuickAddTask
+                  workspaceId={personalWorkspaceId}
+                  currentUserId={currentUserId}
+                />
+              </div>
+            )}
+            <MobileTodayView items={todayItems} onTaskClick={setSelectedId} />
+          </>
+        )}
+
+        {mobileTab === "inbox" && (
+          <>
+            <h1 className="mobile-screen-title">Inbox</h1>
+            <p className="mobile-screen-subtitle">Personal tasks</p>
+            <div ref={quickAddRef} className="mb-4">
+              {(showMobileAdd || personalTasks.length === 0) && (
+                <QuickAddTask
+                  workspaceId={personalWorkspaceId}
+                  currentUserId={currentUserId}
+                />
+              )}
+            </div>
+            <TaskListView
+              tasks={personalTasks}
+              columns={personalColumns}
+              users={users}
+              canEdit
+              onTaskClick={setSelectedId}
+              currentUserId={currentUserId}
+            />
+          </>
+        )}
+
+        {mobileTab === "shared" && (
+          <>
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight text-slate-900">Shared</h1>
+                <p className="mt-1 text-sm text-slate-500">Team boards</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateBoard((value) => !value)}
+                aria-label={showCreateBoard ? "Hide new board form" : "Create new board"}
+                aria-expanded={showCreateBoard}
+                className={`touch-target flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition ${
+                  showCreateBoard
+                    ? "border-brand-300 bg-brand-50 text-brand-700"
+                    : "border-slate-200 bg-white text-slate-600 active:bg-brand-50"
+                }`}
+              >
+                <IconPlus size={18} />
+              </button>
+            </div>
+            {boardsSection}
+          </>
+        )}
+
+        <MobileBottomNav
+          active={mobileTab}
+          onChange={setMobileTab}
+          todayCount={todayCount}
+        />
+
+        <button
+          type="button"
+          onClick={handleMobileFab}
+          className="mobile-fab"
+          aria-label={mobileTab === "shared" ? "Create new board" : "Add task"}
+        >
+          <IconPlus size={22} />
+        </button>
       </div>
 
-      <section className="mb-8 sm:mb-10">
-        <SectionHeader
-          title="Boards"
-          description="Team and shared workspaces — tap to expand, add tasks, and assign people."
-          icon={<IconBoard size={17} />}
-          titleTrailing={
-            <button
-              type="button"
-              onClick={() => setShowCreateBoard((value) => !value)}
-              aria-label={showCreateBoard ? "Hide new board form" : "Create new board"}
-              aria-expanded={showCreateBoard}
-              className={`touch-target flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition ${
-                showCreateBoard
-                  ? "border-brand-300 bg-brand-50 text-brand-700"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 active:bg-brand-50"
-              }`}
-            >
-              <IconPlus size={16} />
-            </button>
-          }
-        />
-
-        {showCreateBoard && (
-          <div className="mb-4">
-            <CreateBoardForms teamsWithoutBoard={teamsWithoutBoard} />
-          </div>
-        )}
-
-        {boardSummaries.length === 0 ? (
-          <Card className="text-center">
-            <p className="text-sm font-medium text-slate-700">No boards yet</p>
-            <p className="mt-1 text-sm text-slate-500">
-              Create a team or shared board to collaborate with others.
-            </p>
-            {!showCreateBoard && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="mt-4"
-                onClick={() => setShowCreateBoard(true)}
-              >
-                <IconPlus size={14} />
-                Create a board
-              </Button>
-            )}
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {boardSummaries.map((board) => (
-              <BoardSummaryCard
-                key={board.id}
-                board={board}
-                expanded={expandedBoards.has(board.id)}
-                onToggle={() => toggleBoard(board.id)}
-                onTaskClick={setSelectedId}
-                assigneeOptions={boardAssigneeOptions[board.id]}
-                currentUserId={currentUserId}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <ExternalSharedSection tasks={externalShared} onTaskClick={setSelectedId} />
-
-      <SharedUpcomingSection tasks={sharedUpcoming} onTaskClick={setSelectedId} />
-
-      <section className="mb-8 sm:mb-10">
-        <SectionHeader
-          title="My personal tasks"
-          description="Private inbox — grouped by due date."
-          icon={<IconInbox size={17} />}
-        />
-        <div className="mb-4">
-          <QuickAddTask workspaceId={personalWorkspaceId} currentUserId={currentUserId} />
+      {/* Desktop layout */}
+      <div className="hidden md:block">
+        <div className="stat-grid">
+          <StatCard label="Personal tasks" value={stats.personal} />
+          <StatCard label="Board deadlines" value={stats.upcoming} tone="warning" />
+          <StatCard label="Shared task-only" value={stats.external} tone="brand" />
+          <StatCard label="Active boards" value={stats.boards} tone="brand" />
+          <StatCard label="Urgent / high" value={stats.urgent} tone="danger" />
         </div>
-        <TaskListView
-          tasks={personalTasks}
-          columns={personalColumns}
-          users={users}
-          canEdit
-          onTaskClick={setSelectedId}
-          currentUserId={currentUserId}
-        />
-      </section>
+
+        <section className="mb-8 sm:mb-10">
+          <SectionHeader
+            title="Boards"
+            description="Team and shared workspaces — tap to expand, add tasks, and assign people."
+            icon={<IconBoard size={17} />}
+            titleTrailing={
+              <button
+                type="button"
+                onClick={() => setShowCreateBoard((value) => !value)}
+                aria-label={showCreateBoard ? "Hide new board form" : "Create new board"}
+                aria-expanded={showCreateBoard}
+                className={`touch-target flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition ${
+                  showCreateBoard
+                    ? "border-brand-300 bg-brand-50 text-brand-700"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 active:bg-brand-50"
+                }`}
+              >
+                <IconPlus size={16} />
+              </button>
+            }
+          />
+          {boardsSection}
+        </section>
+
+        <ExternalSharedSection tasks={externalShared} onTaskClick={setSelectedId} />
+        <SharedUpcomingSection tasks={sharedUpcoming} onTaskClick={setSelectedId} />
+
+        <section className="mb-8 sm:mb-10">
+          <SectionHeader
+            title="My personal tasks"
+            description="Private inbox — grouped by due date."
+            icon={<IconInbox size={17} />}
+          />
+          <div className="mb-4">
+            <QuickAddTask workspaceId={personalWorkspaceId} currentUserId={currentUserId} />
+          </div>
+          <TaskListView
+            tasks={personalTasks}
+            columns={personalColumns}
+            users={users}
+            canEdit
+            onTaskClick={setSelectedId}
+            currentUserId={currentUserId}
+          />
+        </section>
+      </div>
 
       <TaskDetailModal
         task={selectedTask}
@@ -410,6 +582,6 @@ export function InboxDashboard({
         externalCandidateUsers={modalAssignees?.external}
         currentUserId={currentUserId}
       />
-    </>
+    </div>
   );
 }
