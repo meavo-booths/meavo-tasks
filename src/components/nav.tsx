@@ -1,4 +1,3 @@
-import { MeavoNavBar } from "@meavo/navigation";
 import {
   getAccessibleTools,
   isMeavoAppKey,
@@ -6,6 +5,7 @@ import {
   resolveGatewayUrl,
 } from "@meavo/navigation/server";
 import { signOutAction } from "@/app/actions/auth";
+import { NavBarClient } from "@/components/nav-bar-client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -32,7 +32,7 @@ export async function Nav() {
   });
 
   return (
-    <MeavoNavBar
+    <NavBarClient
       links={links}
       logoHref={GATEWAY_URL}
       toolSwitcher={{
@@ -43,11 +43,6 @@ export async function Nav() {
       userEmail={session.user.email}
       userImage={session.user.image}
       signOutAction={signOutAction}
-      isActiveLink={(pathname, href) =>
-        href === "/"
-          ? pathname === "/"
-          : pathname === href || pathname.startsWith(`${href}/`)
-      }
     />
   );
 }

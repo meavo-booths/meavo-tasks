@@ -2,14 +2,18 @@ import { prisma } from "@/lib/prisma";
 import type { IntegrationProvider, TaskIntegrationRow, TaskUserSettingsRow } from "./types";
 
 export async function getTaskUserSettings(userId: string): Promise<TaskUserSettingsRow> {
-  const rows = await prisma.$queryRaw<TaskUserSettingsRow[]>`
-    SELECT "userId", "slackNotificationsEnabled", "slackWebhookUrl"
-    FROM "TaskUserSettings"
-    WHERE "userId" = ${userId}
-    LIMIT 1
-  `;
+  try {
+    const rows = await prisma.$queryRaw<TaskUserSettingsRow[]>`
+      SELECT "userId", "slackNotificationsEnabled", "slackWebhookUrl"
+      FROM "TaskUserSettings"
+      WHERE "userId" = ${userId}
+      LIMIT 1
+    `;
 
-  if (rows[0]) return rows[0];
+    if (rows[0]) return rows[0];
+  } catch (error) {
+    console.error("getTaskUserSettings failed:", error);
+  }
 
   return {
     userId,
@@ -69,20 +73,25 @@ export async function getTaskIntegration(
 }
 
 export async function listTaskIntegrations(userId: string): Promise<TaskIntegrationRow[]> {
-  return prisma.$queryRaw<TaskIntegrationRow[]>`
-    SELECT
-      "id",
-      "userId",
-      "provider",
-      "accessToken",
-      "metadata",
-      "enabled",
-      "syncDirection",
-      "lastSyncAt"
-    FROM "TaskIntegration"
-    WHERE "userId" = ${userId}
-    ORDER BY "provider" ASC
-  `;
+  try {
+    return await prisma.$queryRaw<TaskIntegrationRow[]>`
+      SELECT
+        "id",
+        "userId",
+        "provider",
+        "accessToken",
+        "metadata",
+        "enabled",
+        "syncDirection",
+        "lastSyncAt"
+      FROM "TaskIntegration"
+      WHERE "userId" = ${userId}
+      ORDER BY "provider" ASC
+    `;
+  } catch (error) {
+    console.error("listTaskIntegrations failed:", error);
+    return [];
+  }
 }
 
 export async function upsertTaskIntegration(
