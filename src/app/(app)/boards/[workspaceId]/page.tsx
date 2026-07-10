@@ -18,10 +18,13 @@ export const dynamic = "force-dynamic";
 
 export default async function BoardPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ workspaceId: string }>;
+  searchParams: Promise<{ task?: string }>;
 }) {
   const { workspaceId } = await params;
+  const { task: initialTaskId } = await searchParams;
   const access = await getTasksUser();
   if (!access.ok) redirect("/login");
 
@@ -88,6 +91,7 @@ export default async function BoardPage({
         assigneeOptions={assigneeOptions}
         externalCandidateUsers={externalCandidateUsers}
         currentUserId={access.user.id}
+        initialTaskId={initialTaskId}
       />
     </>
   );

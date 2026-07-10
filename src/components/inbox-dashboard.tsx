@@ -264,6 +264,7 @@ export function InboxDashboard({
   currentUserId,
   teamsWithoutBoard,
   boardAssigneeOptions,
+  initialTaskId,
 }: {
   personalWorkspaceId: string;
   personalTasks: TaskWithRelations[];
@@ -275,13 +276,23 @@ export function InboxDashboard({
   currentUserId: string;
   teamsWithoutBoard: TeamOption[];
   boardAssigneeOptions: Record<string, BoardAssigneeOptions>;
+  initialTaskId?: string;
 }) {
   const router = useRouter();
   const [mobileTab, setMobileTab] = useState<MobileTab>("today");
   const [expandedBoards, setExpandedBoards] = useState<Set<string>>(new Set());
   const [showCreateBoard, setShowCreateBoard] = useState(false);
   const [showMobileAdd, setShowMobileAdd] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Deep link (?task=...) opens the task modal on load, if the task is visible here.
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    if (!initialTaskId) return null;
+    const visible =
+      personalTasks.some((t) => t?.id === initialTaskId) ||
+      boardSummaries.some((b) => b.tasks.some((t) => t?.id === initialTaskId)) ||
+      sharedUpcoming.some((t) => t?.id === initialTaskId) ||
+      externalShared.some((t) => t?.id === initialTaskId);
+    return visible ? initialTaskId : null;
+  });
   const quickAddRef = useRef<HTMLDivElement>(null);
 
   const todayItems = useMemo(

@@ -27,6 +27,7 @@ export function BoardPageClient({
   assigneeOptions,
   externalCandidateUsers,
   currentUserId,
+  initialTaskId,
 }: {
   workspaceId: string;
   workspaceType: TaskWorkspaceType;
@@ -37,9 +38,15 @@ export function BoardPageClient({
   assigneeOptions?: UserOption[];
   externalCandidateUsers?: UserOption[];
   currentUserId?: string;
+  initialTaskId?: string;
 }) {
   const router = useRouter();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Deep link (?task=...) opens the task modal on load, if the task is on this board.
+  const [selectedId, setSelectedId] = useState<string | null>(() =>
+    initialTaskId && columns.some((c) => c.tasks.some((t) => t?.id === initialTaskId))
+      ? initialTaskId
+      : null
+  );
 
   const allTasks = columns.flatMap((c) => c.tasks);
   const selectedTask = allTasks.find((t) => t?.id === selectedId) ?? null;

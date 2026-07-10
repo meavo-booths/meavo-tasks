@@ -19,7 +19,12 @@ import { TaskWorkspaceType } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ task?: string }>;
+}) {
+  const { task: initialTaskId } = await searchParams;
   const access = await getTasksUser();
   if (!access.ok) redirect("/login");
 
@@ -69,6 +74,7 @@ export default async function DashboardPage() {
         currentUserId={access.user.id}
         teamsWithoutBoard={teamsWithoutBoard}
         boardAssigneeOptions={boardAssigneeOptions}
+        initialTaskId={initialTaskId}
       />
     </>
   );

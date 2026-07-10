@@ -16,6 +16,7 @@ import {
   getExternalAssigneeCandidates,
   getWorkspaceAssigneeOptions,
 } from "@/app/actions/workspaces";
+import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { prisma } from "@/lib/prisma";
 
 export type ActionResult = { error?: string; taskId?: string };
@@ -24,6 +25,28 @@ async function requireUser() {
   const access = await getTasksUser();
   if (!access.ok) return { error: access.error } as const;
   return { user: access.user } as const;
+}
+
+/** Fire-and-forget "task assigned" notifications, skipping self-assignment. */
+function notifyTaskAssigned(
+  taskId: string,
+  assigneeUserIds: string[],
+  assignedByUserId: string
+) {
+  // Timestamped key: re-assigning after removal should notify again, while
+  // still deduplicating retries of the same action call.
+  const occurredAt = Date.now();
+  for (const assigneeUserId of assigneeUserIds) {
+    if (assigneeUserId === assignedByUserId) continue;
+    void enqueueNotification({
+      sourceApp: "tasks",
+      eventType: "tasks.task.assigned",
+      idempotencyKey: `tasks:assigned:${taskId}:${assigneeUserId}:${occurredAt}`,
+      payload: { taskId, assigneeUserId, assignedByUserId },
+    }).catch((error) => {
+      console.error("Notification enqueue failed:", error);
+    });
+  }
 }
 
 export async function createTask(formData: FormData): Promise<ActionResult> {
@@ -105,6 +128,8 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
       },
     },
   });
+
+  notifyTaskAssigned(task.id, assigneeIds, auth.user.id);
 
   revalidatePath("/");
   revalidatePath("/boards");
@@ -312,6 +337,7 @@ export async function setTaskMemberAssignees(
 
   const boardMemberIds = await getWorkspaceBoardMemberIds(task.workspaceId);
   const uniqueIds = [...new Set(userIds.filter((id) => boardMemberIds.has(id)))];
+  const previousAssigneeIds = new Set(task.assignees.map((a) => a.userId));
 
   await prisma.$transaction([
     prisma.taskAssignee.deleteMany({
@@ -329,6 +355,12 @@ export async function setTaskMemberAssignees(
         ]
       : []),
   ]);
+
+  notifyTaskAssigned(
+    taskId,
+    uniqueIds.filter((id) => !previousAssigneeIds.has(id)),
+    auth.user.id
+  );
 
   revalidatePath("/");
   revalidatePath(`/boards/${task.workspaceId}`);
@@ -360,6 +392,7 @@ export async function setTaskExternalAssignees(
   const uniqueIds = [
     ...new Set(userIds.filter((id) => id && !boardMemberIds.has(id))),
   ];
+  const previousAssigneeIds = new Set(task.assignees.map((a) => a.userId));
 
   await prisma.$transaction([
     prisma.taskAssignee.deleteMany({
@@ -377,6 +410,12 @@ export async function setTaskExternalAssignees(
         ]
       : []),
   ]);
+
+  notifyTaskAssigned(
+    taskId,
+    uniqueIds.filter((id) => !previousAssigneeIds.has(id)),
+    auth.user.id
+  );
 
   revalidatePath("/");
   revalidatePath(`/boards/${task.workspaceId}`);
@@ -431,6 +470,11 @@ export async function addTaskAssignee(
     create: { taskId, userId, scope },
     update: { scope },
   });
+
+  // Only a brand-new assignment notifies; a scope change does not.
+  if (!existing) {
+    notifyTaskAssigned(taskId, [userId], auth.user.id);
+  }
 
   revalidatePath("/");
   revalidatePath(`/boards/${task.workspaceId}`);
