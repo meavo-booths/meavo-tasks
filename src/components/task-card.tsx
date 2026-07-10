@@ -91,6 +91,11 @@ export function TaskCard({
             <p className="text-sm font-medium leading-snug text-slate-900">{task.title}</p>
             <PriorityBadge priority={task.priority} compact />
           </div>
+          {task.description && (
+            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
+              {task.description}
+            </p>
+          )}
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
             {task.dueDate ? (
               <DueDateBadge dueDate={task.dueDate} compact />

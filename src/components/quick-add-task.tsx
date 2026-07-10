@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { createTask } from "@/app/actions/tasks";
 import { AssigneePicker } from "@/components/assignee-picker";
+import { TaskInstructionsField } from "@/components/task-instructions-field";
 import { IconCalendar, IconFlag, IconPlus } from "@/components/icons";
 import { Button } from "@/components/ui";
 import { PRIORITY_META, PRIORITY_OPTIONS, type TaskPriorityValue } from "@/lib/tasks-config";
@@ -94,6 +95,10 @@ export function QuickAddTask({
             {showAssignees && (
               <AssigneePicker users={assigneeOptions} currentUserId={currentUserId} />
             )}
+
+            <div className="w-full">
+              <TaskInstructionsField compact rows={4} />
+            </div>
           </div>
         )}
       </div>

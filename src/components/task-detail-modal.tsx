@@ -19,6 +19,10 @@ import { AssigneeChipPicker } from "@/components/assignee-chip-picker";
 import { LinkEntityPicker } from "@/components/link-entity-picker";
 import { Modal } from "@/components/modal";
 import { PriorityBadge } from "@/components/priority-badge";
+import {
+  TaskInstructionsDisplay,
+  TaskInstructionsField,
+} from "@/components/task-instructions-field";
 import { UserAvatar } from "@/components/user-avatar";
 import { Button, Input, Select } from "@/components/ui";
 import { externalAssignees, memberAssignees } from "@/lib/task-assignees";
@@ -268,15 +272,7 @@ export function TaskDetailModal({
         >
           <input type="hidden" name="taskId" value={task.id} />
           <Input label="Title" name="title" defaultValue={task.title} required />
-          <label className="block space-y-1 text-sm">
-            <span className="font-medium text-slate-700">Description</span>
-            <textarea
-              name="description"
-              defaultValue={task.description}
-              rows={3}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
-            />
-          </label>
+          <TaskInstructionsField defaultValue={task.description} />
           <div className="grid gap-4 sm:grid-cols-2">
             <Select
               label="Priority"
@@ -317,7 +313,7 @@ export function TaskDetailModal({
         </form>
       ) : (
         <div className="space-y-3 text-sm text-slate-600">
-          <p>{task.description || "No description."}</p>
+          <TaskInstructionsDisplay instructions={task.description} />
           <p className="flex items-center gap-2">
             Priority:
             {task.priority === "NONE" ? (
