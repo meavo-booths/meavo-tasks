@@ -2,10 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { del, put } from "@vercel/blob";
+
 import { getTasksUser } from "@/lib/access";
 import { getTaskAccess } from "@/lib/domain/task-authz";
 import { getTaskById } from "@/lib/domain/task-queries";
-import { prisma } from "@/lib/prisma";
+import {
+  createTaskAttachmentRecord,
+  deleteTaskAttachmentRecord,
+  getTaskAttachmentById,
+} from "@/lib/domain/task-attachments";
 
 export type ActionResult = { error?: string };
 
@@ -58,15 +63,13 @@ export async function uploadTaskAttachment(formData: FormData): Promise<ActionRe
     }
   );
 
-  await prisma.taskAttachment.create({
-    data: {
-      taskId,
-      storageKey: blob.pathname,
-      fileName: file.name,
-      mimeType: file.type || "application/octet-stream",
-      byteSize: file.size,
-      uploadedById: access.user.id,
-    },
+  await createTaskAttachmentRecord({
+    taskId,
+    storageKey: blob.pathname,
+    fileName: file.name,
+    mimeType: file.type || "application/octet-stream",
+    byteSize: file.size,
+    uploadedById: access.user.id,
   });
 
   revalidateTaskPaths(task.workspaceId);
@@ -77,15 +80,15 @@ export async function deleteTaskAttachment(attachmentId: string): Promise<Action
   const access = await getTasksUser();
   if (!access.ok) return { error: access.error };
 
-  const attachment = await prisma.taskAttachment.findUnique({
-    where: { id: attachmentId },
-    include: { task: { select: { id: true, workspaceId: true } } },
-  });
+  const attachment = await getTaskAttachmentById(attachmentId);
   if (!attachment) return { error: "Attachment not found." };
+
+  const task = await getTaskById(attachment.taskId);
+  if (!task) return { error: "Task not found." };
 
   const taskAccess = await getTaskAccess(
     access.user.id,
-    attachment.task.id,
+    attachment.taskId,
     access.user.systemRole
   );
   if (!taskAccess.canEdit) {
@@ -98,7 +101,7 @@ export async function deleteTaskAttachment(attachmentId: string): Promise<Action
     // Blob may already be gone; still remove DB row.
   }
 
-  await prisma.taskAttachment.delete({ where: { id: attachmentId } });
-  revalidateTaskPaths(attachment.task.workspaceId);
+  await deleteTaskAttachmentRecord(attachmentId);
+  revalidateTaskPaths(task.workspaceId);
   return {};
 }

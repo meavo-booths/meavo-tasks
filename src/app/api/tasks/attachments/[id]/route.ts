@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
+
 import { get } from "@vercel/blob";
 import { getTasksUser } from "@/lib/access";
 import { canAccessTask } from "@/lib/domain/task-queries";
+import { getTaskAttachmentById } from "@/lib/domain/task-attachments";
 import { sanitizeFilename } from "@/lib/content-disposition";
-import { prisma } from "@/lib/prisma";
 
 export async function GET(
   _request: Request,
@@ -15,15 +16,7 @@ export async function GET(
   }
 
   const { id } = await params;
-  const attachment = await prisma.taskAttachment.findUnique({
-    where: { id },
-    select: {
-      fileName: true,
-      mimeType: true,
-      storageKey: true,
-      taskId: true,
-    },
-  });
+  const attachment = await getTaskAttachmentById(id);
 
   if (!attachment) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { getWorkspaceAccess, getTaskAccess } from "@/lib/domain/task-authz";
 import { groupTasksByColumns, sortTasksForPreview } from "@/lib/task-sort";
 import { collectWorkspaceAssigneeOptions } from "@/lib/domain/workspace-members";
+import { withTaskAttachments } from "@/lib/domain/task-attachments";
 
 const UPCOMING_DAYS = 3;
 
@@ -19,22 +20,19 @@ const taskInclude = {
     },
   },
   externalLinks: true,
-  attachments: {
-    orderBy: { createdAt: "asc" },
-    include: {
-      uploadedBy: { select: { id: true, name: true, email: true } },
-    },
-  },
   column: { select: { id: true, name: true } },
 } as const;
 
 export type TaskWithRelations = NonNullable<Awaited<ReturnType<typeof getTaskById>>>;
 
 export async function getTaskById(taskId: string) {
-  return prisma.task.findUnique({
+  const task = await prisma.task.findUnique({
     where: { id: taskId },
     include: taskInclude,
   });
+  if (!task) return null;
+  const [withAttachments] = await withTaskAttachments([task]);
+  return withAttachments;
 }
 
 export async function getAccessibleWorkspaces(userId: string, systemRole?: SystemRole) {
@@ -122,7 +120,7 @@ export async function getAccessibleWorkspaces(userId: string, systemRole?: Syste
 }
 
 export async function getWorkspaceBoard(workspaceId: string) {
-  return prisma.taskWorkspace.findUnique({
+  const workspace = await prisma.taskWorkspace.findUnique({
     where: { id: workspaceId },
     include: {
       team: { select: { id: true, name: true, color: true } },
@@ -143,10 +141,23 @@ export async function getWorkspaceBoard(workspaceId: string) {
       },
     },
   });
+  if (!workspace) return null;
+
+  const tasks = workspace.columns.flatMap((column) => column.tasks);
+  const tasksWithAttachments = await withTaskAttachments(tasks);
+  const tasksById = new Map(tasksWithAttachments.map((task) => [task.id, task]));
+
+  return {
+    ...workspace,
+    columns: workspace.columns.map((column) => ({
+      ...column,
+      tasks: column.tasks.map((task) => tasksById.get(task.id)!),
+    })),
+  };
 }
 
 export async function getWorkspaceOpenTasks(workspaceId: string) {
-  return prisma.task.findMany({
+  const tasks = await prisma.task.findMany({
     where: {
       workspaceId,
       status: TaskStatus.OPEN,
@@ -154,6 +165,7 @@ export async function getWorkspaceOpenTasks(workspaceId: string) {
     orderBy: [{ dueDate: "asc" }, { position: "asc" }],
     include: taskInclude,
   });
+  return withTaskAttachments(tasks);
 }
 
 export type BoardColumnTasks = {
@@ -232,12 +244,13 @@ export async function getBoardDashboardSummaries(
 
   const workspaceById = new Map(workspaceDetails.map((workspace) => [workspace.id, workspace]));
   const accessById = new Map(boards.map((board, index) => [board.id, accessResults[index]]));
+  const tasksWithAttachments = await withTaskAttachments(tasks);
 
   const today = startOfDay(new Date());
   const soonEnd = addDays(today, UPCOMING_DAYS);
 
   return boards.map((board) => {
-    const boardTasks = tasks.filter((t) => t.workspaceId === board.id);
+    const boardTasks = tasksWithAttachments.filter((t) => t.workspaceId === board.id);
     let dueTodayCount = 0;
     let dueSoonCount = 0;
     let urgentCount = 0;
@@ -304,7 +317,7 @@ export async function getSharedUpcomingTasks(
   const today = startOfDay(new Date());
   const horizon = addDays(today, UPCOMING_DAYS);
 
-  return prisma.task.findMany({
+  const tasks = await prisma.task.findMany({
     where: {
       workspaceId: { in: boardIds },
       status: TaskStatus.OPEN,
@@ -317,10 +330,11 @@ export async function getSharedUpcomingTasks(
       workspace: { select: { id: true, name: true, type: true } },
     },
   });
+  return withTaskAttachments(tasks);
 }
 
 export async function getExternallySharedTasks(userId: string) {
-  return prisma.task.findMany({
+  const tasks = await prisma.task.findMany({
     where: {
       status: TaskStatus.OPEN,
       assignees: { some: { userId, scope: "EXTERNAL" } },
@@ -331,6 +345,7 @@ export async function getExternallySharedTasks(userId: string) {
       workspace: { select: { id: true, name: true, type: true } },
     },
   });
+  return withTaskAttachments(tasks);
 }
 
 export async function getPersonalInboxTasks(userId: string) {
@@ -340,7 +355,7 @@ export async function getPersonalInboxTasks(userId: string) {
   });
   if (!personal) return [];
 
-  return prisma.task.findMany({
+  const tasks = await prisma.task.findMany({
     where: {
       workspaceId: personal.id,
       status: TaskStatus.OPEN,
@@ -352,6 +367,7 @@ export async function getPersonalInboxTasks(userId: string) {
     orderBy: [{ dueDate: "asc" }, { position: "asc" }],
     include: taskInclude,
   });
+  return withTaskAttachments(tasks);
 }
 
 export async function canAccessTask(
