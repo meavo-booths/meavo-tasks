@@ -119,6 +119,18 @@ async function main() {
 
     await applyAssigneeScopeMigration(prisma);
 
+    const attachmentTable = await prisma.$queryRaw`
+      SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = 'TaskAttachment'
+      LIMIT 1
+    `;
+    if (!Array.isArray(attachmentTable) || attachmentTable.length === 0) {
+      console.log("bootstrap-db: applying task attachments migration…");
+      await applySqlFile("scripts/add-task-attachments.sql");
+    } else {
+      console.log("bootstrap-db: task attachments already present.");
+    }
+
     const settingsTable = await prisma.$queryRaw`
       SELECT 1 FROM information_schema.tables
       WHERE table_schema = 'public' AND table_name = 'TaskUserSettings'

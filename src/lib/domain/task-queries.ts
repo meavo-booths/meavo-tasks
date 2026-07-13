@@ -19,6 +19,12 @@ const taskInclude = {
     },
   },
   externalLinks: true,
+  attachments: {
+    orderBy: { createdAt: "asc" },
+    include: {
+      uploadedBy: { select: { id: true, name: true, email: true } },
+    },
+  },
   column: { select: { id: true, name: true } },
 } as const;
 

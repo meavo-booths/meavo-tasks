@@ -20,8 +20,10 @@ import { LinkEntityPicker } from "@/components/link-entity-picker";
 import { Modal } from "@/components/modal";
 import { PriorityBadge } from "@/components/priority-badge";
 import {
-  TaskInstructionsDisplay,
-  TaskInstructionsField,
+  TaskDetailsDisplay,
+  TaskDetailsPanel,
+  TaskDetailsToggle,
+  useTaskDetails,
 } from "@/components/task-instructions-field";
 import { UserAvatar } from "@/components/user-avatar";
 import { Button, Input, Select } from "@/components/ui";
@@ -56,6 +58,10 @@ export function TaskDetailModal({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const description = useTaskDetails(
+    task?.description ?? "",
+    task?.attachments.length ?? 0
+  );
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [selectedExternal, setSelectedExternal] = useState<string[]>([]);
   const [resolvedMembers, setResolvedMembers] = useState<UserOption[]>([]);
@@ -78,6 +84,8 @@ export function TaskDetailModal({
       setSelectedMembers(memberAssignees(task).map((a) => a.userId));
       setSelectedExternal(externalAssignees(task).map((a) => a.userId));
       setError(null);
+      description.setValue(task.description);
+      description.setOpen(false);
     }
   }, [task]);
 
@@ -272,14 +280,30 @@ export function TaskDetailModal({
         >
           <input type="hidden" name="taskId" value={task.id} />
           <Input label="Title" name="title" defaultValue={task.title} required />
-          <TaskInstructionsField defaultValue={task.description} />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Select
-              label="Priority"
-              name="priority"
-              defaultValue={task.priority}
-              options={PRIORITY_OPTIONS.map((p) => ({ value: p.value, label: p.label }))}
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="min-w-[12rem] flex-1">
+              <Select
+                label="Priority"
+                name="priority"
+                defaultValue={task.priority}
+                options={PRIORITY_OPTIONS.map((p) => ({ value: p.value, label: p.label }))}
+              />
+            </div>
+            <TaskDetailsToggle {...description.toggleProps} className="mb-0.5" />
+          </div>
+          {!description.open && description.hasContent && (
+            <input type="hidden" name="description" value={description.value} />
+          )}
+          {description.open && (
+            <TaskDetailsPanel
+              taskId={task.id}
+              description={description.value}
+              onDescriptionChange={description.setValue}
+              attachments={task.attachments}
+              canEdit={effectiveCanEdit}
             />
+          )}
+          <div className="grid gap-4 sm:grid-cols-2">
             <Select
               label="Column"
               name="columnId"
@@ -313,7 +337,10 @@ export function TaskDetailModal({
         </form>
       ) : (
         <div className="space-y-3 text-sm text-slate-600">
-          <TaskInstructionsDisplay instructions={task.description} />
+          <TaskDetailsDisplay
+            description={task.description}
+            attachments={task.attachments}
+          />
           <p className="flex items-center gap-2">
             Priority:
             {task.priority === "NONE" ? (
