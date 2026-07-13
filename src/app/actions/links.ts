@@ -1,25 +1,17 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { TaskLinkedApp } from "@prisma/client";
 import { getTasksUser } from "@/lib/access";
 import { requireWorkspaceEdit } from "@/lib/domain/task-authz";
 import { getTaskById } from "@/lib/domain/task-queries";
 import {
-  entityTypeForApp,
-  resolveExternalLink,
-  searchLinkableEntities,
-} from "@/lib/integrations/link-resolver";
+  createTaskExternalLink,
+  parseLinkedApp,
+} from "@/lib/integrations/external-link";
+import { searchLinkableEntities } from "@/lib/integrations/link-resolver";
 import { prisma } from "@/lib/prisma";
 
 export type ActionResult = { error?: string };
-
-function parseLinkedApp(value: string): TaskLinkedApp | null {
-  if (Object.values(TaskLinkedApp).includes(value as TaskLinkedApp)) {
-    return value as TaskLinkedApp;
-  }
-  return null;
-}
 
 export async function attachExternalLink(formData: FormData): Promise<ActionResult> {
   const access = await getTasksUser();
@@ -46,19 +38,8 @@ export async function attachExternalLink(formData: FormData): Promise<ActionResu
     return { error: "You do not have permission to link this task." };
   }
 
-  const resolved = await resolveExternalLink(linkedApp, entityId);
-  if (!resolved) return { error: "Entity not found." };
-
-  await prisma.taskExternalLink.create({
-    data: {
-      taskId,
-      linkedApp,
-      entityType: entityTypeForApp(linkedApp),
-      entityId,
-      displayLabel: resolved.displayLabel,
-      deepLinkUrl: resolved.deepLinkUrl,
-    },
-  });
+  const linkResult = await createTaskExternalLink(taskId, linkedApp, entityId);
+  if (linkResult.error) return { error: linkResult.error };
 
   revalidatePath(`/boards/${task.workspaceId}`);
   revalidatePath("/");

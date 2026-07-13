@@ -9,19 +9,21 @@ import { Button, Input } from "@/components/ui";
 export function LoginForm({
   googleEnabled,
   authError,
+  callbackUrl = "/",
 }: {
   googleEnabled: boolean;
   authError?: string | null;
+  callbackUrl?: string;
 }) {
   const router = useRouter();
   const [state, action, pending] = useActionState(loginAction, null);
 
   useEffect(() => {
     if (state?.ok) {
-      router.push("/");
+      router.push(callbackUrl);
       router.refresh();
     }
-  }, [state, router]);
+  }, [state, router, callbackUrl]);
 
   const error = state?.error ?? authError;
 

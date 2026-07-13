@@ -23,9 +23,18 @@ export default auth((req) => {
   const isLoginPage = pathname.startsWith("/login");
 
   if (!isLoggedIn && !isLoginPage) {
-    return Response.redirect(new URL("/login", req.nextUrl));
+    const loginUrl = new URL("/login", req.nextUrl);
+    const callbackUrl = req.nextUrl.pathname + req.nextUrl.search;
+    if (callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")) {
+      loginUrl.searchParams.set("callbackUrl", callbackUrl);
+    }
+    return Response.redirect(loginUrl);
   }
   if (isLoggedIn && isLoginPage) {
+    const callbackUrl = req.nextUrl.searchParams.get("callbackUrl");
+    if (callbackUrl && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")) {
+      return Response.redirect(new URL(callbackUrl, req.nextUrl));
+    }
     return Response.redirect(new URL("/", req.nextUrl));
   }
 });

@@ -1,8 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { TaskAssigneeScope, TaskStatus } from "@prisma/client";
+import { TaskAssigneeScope, TaskLinkedApp, TaskStatus } from "@prisma/client";
 import { getTasksUser } from "@/lib/access";
+import {
+  createTaskExternalLink,
+  parseLinkedApp,
+} from "@/lib/integrations/external-link";
+import { resolveExternalLink } from "@/lib/integrations/link-resolver";
 import { requireWorkspaceEdit } from "@/lib/domain/task-authz";
 import {
   canAccessTask,
@@ -65,6 +70,24 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
     );
   } catch {
     return { error: "You do not have permission to add tasks here." };
+  }
+
+  const linkedAppRaw = (formData.get("linkedApp") as string)?.trim();
+  const entityIdRaw = (formData.get("entityId") as string)?.trim();
+  const wantsLink = Boolean(linkedAppRaw || entityIdRaw);
+
+  let linkedApp: TaskLinkedApp | null = null;
+  let entityId: string | null = null;
+  let resolvedLink: Awaited<ReturnType<typeof resolveExternalLink>> = null;
+
+  if (wantsLink) {
+    linkedApp = linkedAppRaw ? parseLinkedApp(linkedAppRaw) : null;
+    entityId = entityIdRaw || null;
+    if (!linkedApp || !entityId) {
+      return { error: "Linked app and entity are required." };
+    }
+    resolvedLink = await resolveExternalLink(linkedApp, entityId);
+    if (!resolvedLink) return { error: "Entity not found." };
   }
 
   const columnId =
@@ -130,6 +153,19 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
   });
 
   notifyTaskAssigned(task.id, assigneeIds, auth.user.id);
+
+  if (linkedApp && entityId) {
+    const linkResult = await createTaskExternalLink(
+      task.id,
+      linkedApp,
+      entityId,
+      resolvedLink
+    );
+    if (linkResult.error) {
+      await prisma.task.delete({ where: { id: task.id } });
+      return { error: linkResult.error };
+    }
+  }
 
   revalidatePath("/");
   revalidatePath("/boards");

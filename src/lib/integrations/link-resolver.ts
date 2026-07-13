@@ -1,10 +1,18 @@
 import { TaskLinkedApp } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
+const SALES_URL = process.env.SALES_URL ?? "https://sales.meavo.app";
+const ASSEMBLY_URL = process.env.ASSEMBLY_URL ?? "https://assembly.meavo.app";
+
 export type ResolvedLink = {
   displayLabel: string;
   deepLinkUrl: string;
 };
+
+function salesDealPath(stage: string, dealId: string): string {
+  if (stage === "WON") return `/deals/${dealId}`;
+  return `/quotes/${dealId}`;
+}
 
 export async function resolveExternalLink(
   linkedApp: TaskLinkedApp,
@@ -14,7 +22,13 @@ export async function resolveExternalLink(
     case TaskLinkedApp.SALES: {
       const deal = await prisma.deal.findUnique({
         where: { id: entityId },
-        select: { id: true, quoteNumber: true, clientName: true, dealId: true },
+        select: {
+          id: true,
+          stage: true,
+          quoteNumber: true,
+          clientName: true,
+          dealId: true,
+        },
       });
       if (!deal) return null;
       const label = deal.dealId
@@ -22,7 +36,7 @@ export async function resolveExternalLink(
         : `${deal.quoteNumber} — ${deal.clientName}`;
       return {
         displayLabel: label,
-        deepLinkUrl: `https://sales.meavo.app/deals/${deal.id}`,
+        deepLinkUrl: `${SALES_URL}${salesDealPath(deal.stage, deal.id)}`,
       };
     }
     case TaskLinkedApp.FACTORY: {
@@ -55,7 +69,7 @@ export async function resolveExternalLink(
       if (!assembly) return null;
       return {
         displayLabel: assembly.dealId,
-        deepLinkUrl: `https://assembly.meavo.app/assemblies/${assembly.dealId}`,
+        deepLinkUrl: `${ASSEMBLY_URL}/assemblies/${encodeURIComponent(assembly.dealId)}`,
       };
     }
     case TaskLinkedApp.MRP: {

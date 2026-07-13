@@ -10,12 +10,17 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; callbackUrl?: string }>;
 }) {
   const session = await auth();
-  if (session?.user) redirect("/");
+  const { error, callbackUrl } = await searchParams;
+  const safeCallback =
+    callbackUrl && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
+      ? callbackUrl
+      : "/";
 
-  const { error } = await searchParams;
+  if (session?.user) redirect(safeCallback);
+
   const authError = error ? (LOGIN_ERROR_MESSAGES[error] ?? LOGIN_ERROR_MESSAGES.AccessDenied) : null;
 
   return (
@@ -35,7 +40,11 @@ export default async function LoginPage({
         <p className="mt-4 text-slate-600">
           Sign in to manage your tasks and team boards.
         </p>
-        <LoginForm googleEnabled={isGoogleAuthEnabled()} authError={authError} />
+        <LoginForm
+          googleEnabled={isGoogleAuthEnabled()}
+          authError={authError}
+          callbackUrl={safeCallback}
+        />
       </Card>
     </div>
   );
