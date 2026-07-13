@@ -8,6 +8,7 @@ import {
   parseLinkedApp,
 } from "@/lib/integrations/external-link";
 import { resolveExternalLink } from "@/lib/integrations/link-resolver";
+import { formatLinkedEntityDescription } from "@/lib/integrations/linked-description";
 import { requireWorkspaceEdit } from "@/lib/domain/task-authz";
 import {
   canAccessTask,
@@ -133,12 +134,18 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
     }
   }
 
+  const userDescription = (formData.get("description") as string)?.trim() ?? "";
+  const description =
+    resolvedLink && linkedApp
+      ? formatLinkedEntityDescription(resolvedLink, linkedApp, userDescription)
+      : userDescription;
+
   const task = await prisma.task.create({
     data: {
       workspaceId,
       columnId,
       title,
-      description: (formData.get("description") as string)?.trim() ?? "",
+      description,
       priority,
       dueDate,
       createdById: auth.user.id,

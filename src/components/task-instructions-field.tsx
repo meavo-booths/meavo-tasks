@@ -35,13 +35,37 @@ export function TaskInstructionsField({
   );
 }
 
+const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
+
+function isUrl(part: string): boolean {
+  return /^https?:\/\//.test(part);
+}
+
 export function TaskInstructionsDisplay({ instructions }: { instructions: string }) {
   if (!instructions.trim()) return null;
+
+  const parts = instructions.split(URL_PATTERN);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
       <p className="mb-2 text-sm font-medium text-slate-700">Detailed instructions</p>
-      <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-600">{instructions}</p>
+      <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-600">
+        {parts.map((part, index) =>
+          isUrl(part) ? (
+            <a
+              key={index}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-brand-700 underline hover:text-brand-800"
+            >
+              {part}
+            </a>
+          ) : (
+            <span key={index}>{part}</span>
+          )
+        )}
+      </p>
     </div>
   );
 }

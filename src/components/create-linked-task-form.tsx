@@ -17,6 +17,7 @@ export function CreateLinkedTaskForm({
   linkedApp,
   entityId,
   defaultTitle,
+  defaultDescription = "",
   entityLabel,
   assigneeOptions,
   currentUserId,
@@ -25,6 +26,7 @@ export function CreateLinkedTaskForm({
   linkedApp: string;
   entityId: string;
   defaultTitle?: string;
+  defaultDescription?: string;
   entityLabel: string;
   assigneeOptions?: UserOption[];
   currentUserId?: string;
@@ -117,7 +119,7 @@ export function CreateLinkedTaskForm({
           )}
 
           <div className="w-full">
-            <TaskInstructionsField compact rows={4} />
+            <TaskInstructionsField compact rows={4} defaultValue={defaultDescription} />
           </div>
         </div>
       </div>

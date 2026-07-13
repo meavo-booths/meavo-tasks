@@ -7,6 +7,7 @@ import { getTasksUser } from "@/lib/access";
 import { parseCreateTaskParams } from "@/lib/create-task-url";
 import { ensurePersonalWorkspace } from "@/lib/domain/workspace-bootstrap";
 import { resolveExternalLink } from "@/lib/integrations/link-resolver";
+import { formatLinkedEntityDescription } from "@/lib/integrations/linked-description";
 import { LINKED_APP_OPTIONS } from "@/lib/tasks-config";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,10 @@ export default async function CreateTaskPage({
   const appLabel =
     LINKED_APP_OPTIONS.find((option) => option.value === params.linkedApp)?.label ??
     params.linkedApp;
+  const defaultDescription = formatLinkedEntityDescription(
+    resolved,
+    params.linkedApp as TaskLinkedApp
+  );
 
   return (
     <>
@@ -46,6 +51,7 @@ export default async function CreateTaskPage({
           linkedApp={params.linkedApp}
           entityId={params.entityId}
           defaultTitle={params.title}
+          defaultDescription={defaultDescription}
           entityLabel={resolved.displayLabel}
           assigneeOptions={assigneeOptions}
           currentUserId={access.user.id}
