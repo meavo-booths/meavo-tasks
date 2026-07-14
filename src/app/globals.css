@@ -184,6 +184,12 @@
     @apply pb-24 md:pb-0;
   }
 
+  .dashboard-task-scroll {
+    @apply max-h-[min(26rem,52dvh)] overflow-y-auto overscroll-contain pr-0.5;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable;
+  }
+
   .mobile-fab {
     @apply fixed bottom-[calc(4.5rem+var(--safe-bottom))] right-4 z-[100] flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg shadow-brand-600/30 transition active:scale-95 active:bg-brand-700 md:hidden;
   }

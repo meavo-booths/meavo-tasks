@@ -307,8 +307,8 @@ export function InboxDashboard({
     [personalTasks, boardSummaries, sharedUpcoming, externalShared, currentUserId]
   );
 
-  const topPersonalTasks = useMemo(
-    () => sortTasksByDeadlineAndUrgency(personalTasks).slice(0, 5),
+  const sortedPersonalTasks = useMemo(
+    () => sortTasksByDeadlineAndUrgency(personalTasks),
     [personalTasks]
   );
 
@@ -505,26 +505,21 @@ export function InboxDashboard({
           <div className="mb-4">
             <QuickAddTask workspaceId={personalWorkspaceId} currentUserId={currentUserId} />
           </div>
-          {topPersonalTasks.length === 0 ? (
+          {sortedPersonalTasks.length === 0 ? (
             <EmptyState
               icon={<IconInbox size={28} />}
               title="No personal tasks yet"
               description="Add a task above to get started."
             />
           ) : (
-            <div className="space-y-2">
-              {topPersonalTasks.map((task) => (
+            <div className="dashboard-task-scroll space-y-2">
+              {sortedPersonalTasks.map((task) => (
                 <TaskListRow
                   key={task.id}
                   task={task}
                   onClick={() => setSelectedId(task.id)}
                 />
               ))}
-              {personalTasks.length > 5 && (
-                <p className="px-1 text-xs text-slate-500">
-                  +{personalTasks.length - 5} more personal tasks
-                </p>
-              )}
             </div>
           )}
         </section>
