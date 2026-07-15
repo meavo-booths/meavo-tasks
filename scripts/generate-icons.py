@@ -122,6 +122,18 @@ def draw_icon(size: int, content_scale: float) -> Image.Image:
     return img
 
 
+def draw_favicon(size: int, content_scale: float, corner_radius_ratio: float = 0.22) -> Image.Image:
+    """Browser-tab favicon with rounded corners; dock icons stay square/full-bleed."""
+    square = draw_icon(size, content_scale)
+    radius = max(2, round(size * corner_radius_ratio))
+    mask = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, size, size], radius=radius, fill=255)
+
+    favicon = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    favicon.paste(square, (0, 0), mask)
+    return favicon
+
+
 def main() -> None:
     ICONS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -135,6 +147,16 @@ def main() -> None:
 
     for path, (size, content_scale) in outputs.items():
         icon = draw_icon(size, content_scale)
+        icon.save(path, format="PNG", optimize=True)
+        print(f"Wrote {path.relative_to(ROOT)} ({size}x{size})")
+
+    favicon_outputs = {
+        ICONS_DIR / "favicon-32.png": (32, 0.88),
+        ICONS_DIR / "favicon-192.png": (192, 0.92),
+    }
+
+    for path, (size, content_scale) in favicon_outputs.items():
+        icon = draw_favicon(size, content_scale)
         icon.save(path, format="PNG", optimize=True)
         print(f"Wrote {path.relative_to(ROOT)} ({size}x{size})")
 
