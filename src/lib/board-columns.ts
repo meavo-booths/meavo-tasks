@@ -28,13 +28,18 @@ export function groupTasksByColumn(
 export type PriorityHighlightItem = {
   task: TaskWithRelations;
   boardName: string;
+  canComplete: boolean;
 };
 
 export function getPriorityHighlight(
-  boards: { name: string; tasks: TaskWithRelations[] }[]
+  boards: { name: string; tasks: TaskWithRelations[]; canEdit?: boolean }[]
 ): { level: "URGENT" | "HIGH"; items: PriorityHighlightItem[] } | null {
   const all: PriorityHighlightItem[] = boards.flatMap((board) =>
-    board.tasks.map((task) => ({ task, boardName: board.name }))
+    board.tasks.map((task) => ({
+      task,
+      boardName: board.name,
+      canComplete: board.canEdit ?? false,
+    }))
   );
 
   const urgent = all.filter((item) => item.task.priority === "URGENT");

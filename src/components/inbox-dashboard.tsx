@@ -286,6 +286,9 @@ export function InboxDashboard({
   const [optimisticMoves, setOptimisticMoves] = useState<
     Map<string, "complete" | "reopen">
   >(new Map());
+  const [optimisticBoardTicks, setOptimisticBoardTicks] = useState<Set<string>>(new Set());
+  const [hiddenBoardTaskIds, setHiddenBoardTaskIds] = useState<Set<string>>(new Set());
+  const [pendingBoardTaskIds, setPendingBoardTaskIds] = useState<Set<string>>(new Set());
   const [completeError, setCompleteError] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<MobileTab>("today");
   const [expandedBoards, setExpandedBoards] = useState<Set<string>>(new Set());
@@ -403,6 +406,74 @@ export function InboxDashboard({
       });
       router.refresh();
     });
+  }
+
+  function handleToggleBoardTaskComplete(taskId: string) {
+    setCompleteError(null);
+    setOptimisticBoardTicks((prev) => new Set(prev).add(taskId));
+    setPendingBoardTaskIds((prev) => new Set(prev).add(taskId));
+
+    window.setTimeout(() => {
+      setOptimisticBoardTicks((prev) => {
+        const next = new Set(prev);
+        next.delete(taskId);
+        return next;
+      });
+      setHiddenBoardTaskIds((prev) => new Set(prev).add(taskId));
+    }, 120);
+
+    startCompleteTransition(async () => {
+      const result = await completeTask(taskId);
+      setPendingBoardTaskIds((prev) => {
+        const next = new Set(prev);
+        next.delete(taskId);
+        return next;
+      });
+      if (result.error) {
+        setOptimisticBoardTicks((prev) => {
+          const next = new Set(prev);
+          next.delete(taskId);
+          return next;
+        });
+        setHiddenBoardTaskIds((prev) => {
+          const next = new Set(prev);
+          next.delete(taskId);
+          return next;
+        });
+        setCompleteError(result.error);
+        return;
+      }
+      setHiddenBoardTaskIds((prev) => {
+        const next = new Set(prev);
+        next.delete(taskId);
+        return next;
+      });
+      router.refresh();
+    });
+  }
+
+  function renderPriorityHighlights() {
+    return (
+      <>
+        {completeError && (
+          <p className="mb-3 text-sm text-red-600" role="alert">
+            {completeError}
+          </p>
+        )}
+        <PriorityHighlightSection
+          boards={boardSummaries}
+          onTaskClick={setSelectedId}
+          onToggleComplete={(taskId, isCompleted) => {
+            if (!isCompleted) handleToggleBoardTaskComplete(taskId);
+          }}
+          hiddenTaskIds={hiddenBoardTaskIds}
+          pendingTaskIds={
+            new Set([...pendingBoardTaskIds, ...optimisticBoardTicks])
+          }
+          optimisticTicks={optimisticBoardTicks}
+        />
+      </>
+    );
   }
 
   function renderPersonalTaskLists() {
@@ -607,10 +678,7 @@ export function InboxDashboard({
                 <IconPlus size={18} />
               </button>
             </div>
-            <PriorityHighlightSection
-              boards={boardSummaries}
-              onTaskClick={setSelectedId}
-            />
+            {renderPriorityHighlights()}
             {boardsSection(true)}
           </>
         )}
@@ -662,6 +730,7 @@ export function InboxDashboard({
               </button>
             }
           />
+          {renderPriorityHighlights()}
           {boardsSection(false)}
         </section>
       </div>
