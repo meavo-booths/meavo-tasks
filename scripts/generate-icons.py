@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Generate Meavo Tasks PWA icons with full-bleed brand-green backgrounds."""
+"""Generate Meavo Tasks PWA icons tuned for macOS dock and mobile home screens."""
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -11,43 +12,110 @@ ROOT = Path(__file__).resolve().parents[1]
 ICONS_DIR = ROOT / "public" / "icons"
 APP_DIR = ROOT / "src" / "app"
 
-BRAND = (12, 143, 97)  # #0C8F61
-WHITE = (250, 249, 247)  # #FAF9F7
+BRAND_TOP = (48, 164, 108)  # #30A46C
+BRAND_BOTTOM = (12, 143, 97)  # #0C8F61
+BRAND_INK = (8, 108, 74)  # checklist marks on the white card
+WHITE = (255, 255, 255)
+
+# Geometry in a 56x56 design grid.
+CARD = (7.0, 8.0, 49.0, 48.0)
+CARD_RADIUS = 6.0
+CHECK = [(14.0, 21.0), (18.5, 25.5), (29.0, 15.0)]
+LINE_TOP = (14.0, 31.0, 42.0, 31.0)
+LINE_BOTTOM = (14.0, 37.0, 33.0, 37.0)
+STROKE = 3.2
+
+
+def _lerp_color(
+    start: tuple[int, int, int],
+    end: tuple[int, int, int],
+    amount: float,
+) -> tuple[int, int, int]:
+    return tuple(
+        round(start[i] + (end[i] - start[i]) * amount) for i in range(3)
+    )
+
+
+def _draw_macos_gradient(size: int) -> Image.Image:
+    img = Image.new("RGB", (size, size))
+    pixels = img.load()
+    highlight_x = size * 0.5
+    highlight_y = size * 0.28
+    highlight_radius = size * 0.78
+
+    for y in range(size):
+        vertical = (y / max(size - 1, 1)) ** 0.9
+        base = _lerp_color(BRAND_TOP, BRAND_BOTTOM, vertical)
+
+        for x in range(size):
+            distance = math.hypot(x - highlight_x, y - highlight_y)
+            gloss = max(0.0, 1.0 - distance / highlight_radius) * 0.14
+            edge = max(abs(x - size / 2), abs(y - size / 2)) / (size / 2)
+            vignette = edge**2 * 0.08
+
+            color = tuple(
+                max(
+                    0,
+                    min(
+                        255,
+                        round(
+                            channel * (1.0 - vignette) + (255 - channel) * gloss
+                        ),
+                    ),
+                )
+                for channel in base
+            )
+            pixels[x, y] = color
+
+    return img
+
+
+def _scale_point(
+    ox: float,
+    oy: float,
+    scale: float,
+    x: float,
+    y: float,
+) -> tuple[float, float]:
+    return ox + x * scale, oy + y * scale
 
 
 def draw_icon(size: int, content_scale: float) -> Image.Image:
-    img = Image.new("RGB", (size, size), BRAND)
+    img = _draw_macos_gradient(size)
     draw = ImageDraw.Draw(img)
 
     scale = size * content_scale / 56
-    stroke = max(2, round(2 * scale))
+    stroke = max(3, round(STROKE * scale))
     ox = (size - 56 * scale) / 2
     oy = (size - 56 * scale) / 2
 
-    x0, y0 = ox + 16 * scale, oy + 17 * scale
-    x1, y1 = ox + 40 * scale, oy + 39 * scale
+    card_x0, card_y0 = _scale_point(ox, oy, scale, CARD[0], CARD[1])
+    card_x1, card_y1 = _scale_point(ox, oy, scale, CARD[2], CARD[3])
     draw.rounded_rectangle(
-        [x0, y0, x1, y1],
-        radius=max(1, round(3 * scale)),
-        outline=WHITE,
-        width=stroke,
+        [card_x0, card_y0, card_x1, card_y1],
+        radius=max(2, round(CARD_RADIUS * scale)),
+        fill=WHITE,
     )
 
     check = [
-        (ox + 21 * scale, oy + 24 * scale),
-        (ox + 24 * scale, oy + 27 * scale),
-        (ox + 31 * scale, oy + 20 * scale),
+        _scale_point(ox, oy, scale, x, y) for x, y in CHECK
     ]
-    draw.line(check, fill=WHITE, width=stroke)
+    draw.line(check, fill=BRAND_INK, width=stroke, joint="curve")
 
     draw.line(
-        [(ox + 21 * scale, oy + 33 * scale), (ox + 35 * scale, oy + 33 * scale)],
-        fill=WHITE,
+        [
+            _scale_point(ox, oy, scale, LINE_TOP[0], LINE_TOP[1]),
+            _scale_point(ox, oy, scale, LINE_TOP[2], LINE_TOP[3]),
+        ],
+        fill=BRAND_INK,
         width=stroke,
     )
     draw.line(
-        [(ox + 21 * scale, oy + 37 * scale), (ox + 31 * scale, oy + 37 * scale)],
-        fill=WHITE,
+        [
+            _scale_point(ox, oy, scale, LINE_BOTTOM[0], LINE_BOTTOM[1]),
+            _scale_point(ox, oy, scale, LINE_BOTTOM[2], LINE_BOTTOM[3]),
+        ],
+        fill=BRAND_INK,
         width=stroke,
     )
 
@@ -58,11 +126,11 @@ def main() -> None:
     ICONS_DIR.mkdir(parents=True, exist_ok=True)
 
     outputs = {
-        ICONS_DIR / "icon-192.png": (192, 0.86),
-        ICONS_DIR / "icon-512.png": (512, 0.86),
-        ICONS_DIR / "icon-maskable.png": (512, 0.68),
-        ICONS_DIR / "apple-touch-icon.png": (180, 0.88),
-        APP_DIR / "apple-icon.png": (180, 0.88),
+        ICONS_DIR / "icon-192.png": (192, 0.94),
+        ICONS_DIR / "icon-512.png": (512, 0.94),
+        ICONS_DIR / "icon-maskable.png": (512, 0.76),
+        ICONS_DIR / "apple-touch-icon.png": (180, 0.96),
+        APP_DIR / "apple-icon.png": (180, 0.96),
     }
 
     for path, (size, content_scale) in outputs.items():
