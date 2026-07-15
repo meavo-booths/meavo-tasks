@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { format } from "date-fns";
+import { completeTask, reopenTask } from "@/app/actions/tasks";
 import { AssigneePalette } from "@/components/assignee-palette";
 import { BoardView } from "@/components/board-view";
 import { CreateBoardForms } from "@/components/create-board-forms";
@@ -12,7 +13,6 @@ import { MobileBottomNav, MobileFab, type MobileTab } from "@/components/mobile-
 import { PriorityHighlightSection } from "@/components/priority-highlight-section";
 import { TaskDetailModal } from "@/components/task-detail-modal";
 import { TaskListRow } from "@/components/task-list-row";
-import { TaskListView } from "@/components/task-list-view";
 import { QuickAddTask } from "@/components/quick-add-task";
 import { IconBoard, IconChevronDown, IconInbox, IconPlus } from "@/components/icons";
 import { Badge, Button, Card, EmptyState, SectionHeader } from "@/components/ui";
@@ -256,6 +256,7 @@ function MobileTodayView({
 export function InboxDashboard({
   personalWorkspaceId,
   personalTasks,
+  completedPersonalTasks,
   boardSummaries,
   sharedUpcoming,
   externalShared,
@@ -268,6 +269,7 @@ export function InboxDashboard({
 }: {
   personalWorkspaceId: string;
   personalTasks: TaskWithRelations[];
+  completedPersonalTasks: TaskWithRelations[];
   boardSummaries: BoardDashboardSummary[];
   sharedUpcoming: SharedTask[];
   externalShared: SharedTask[];
@@ -279,6 +281,9 @@ export function InboxDashboard({
   initialTaskId?: string;
 }) {
   const router = useRouter();
+  const [isCompleting, startCompleteTransition] = useTransition();
+  const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
+  const [completeError, setCompleteError] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<MobileTab>("today");
   const [expandedBoards, setExpandedBoards] = useState<Set<string>>(new Set());
   const [showCreateBoard, setShowCreateBoard] = useState(false);
@@ -288,6 +293,7 @@ export function InboxDashboard({
     if (!initialTaskId) return null;
     const visible =
       personalTasks.some((t) => t?.id === initialTaskId) ||
+      completedPersonalTasks.some((t) => t?.id === initialTaskId) ||
       boardSummaries.some((b) => b.tasks.some((t) => t?.id === initialTaskId)) ||
       sharedUpcoming.some((t) => t?.id === initialTaskId) ||
       externalShared.some((t) => t?.id === initialTaskId);
@@ -316,11 +322,82 @@ export function InboxDashboard({
 
   const allTasks = [
     ...personalTasks,
+    ...completedPersonalTasks,
     ...boardSummaries.flatMap((b) => b.tasks),
     ...sharedUpcoming,
     ...externalShared,
   ];
   const selectedTask = allTasks.find((t) => t?.id === selectedId) ?? null;
+
+  function handleTogglePersonalComplete(taskId: string, isCompleted: boolean) {
+    setCompleteError(null);
+    setCompletingTaskId(taskId);
+    startCompleteTransition(async () => {
+      const result = isCompleted ? await reopenTask(taskId) : await completeTask(taskId);
+      setCompletingTaskId(null);
+      if (result.error) {
+        setCompleteError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  function renderPersonalTaskLists() {
+    return (
+      <>
+        {completeError && (
+          <p className="mb-3 text-sm text-red-600" role="alert">
+            {completeError}
+          </p>
+        )}
+        {sortedPersonalTasks.length === 0 && completedPersonalTasks.length === 0 ? (
+          <EmptyState
+            icon={<IconInbox size={28} />}
+            title="No personal tasks yet"
+            description="Add a task above to get started."
+          />
+        ) : sortedPersonalTasks.length === 0 ? (
+          <p className="text-sm text-slate-500">No open personal tasks.</p>
+        ) : (
+          <div className="dashboard-task-scroll space-y-2">
+            {sortedPersonalTasks.map((task) => (
+              <TaskListRow
+                key={task.id}
+                task={task}
+                onClick={() => setSelectedId(task.id)}
+                onToggleComplete={() => handleTogglePersonalComplete(task.id, false)}
+                completing={isCompleting && completingTaskId === task.id}
+              />
+            ))}
+          </div>
+        )}
+
+        {completedPersonalTasks.length > 0 && (
+          <div className="mt-6">
+            <div className="mb-3 flex items-center gap-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Completed
+              </h3>
+              <Badge tone="neutral">{completedPersonalTasks.length}</Badge>
+            </div>
+            <div className="dashboard-task-scroll space-y-2">
+              {completedPersonalTasks.map((task) => (
+                <TaskListRow
+                  key={task.id}
+                  task={task}
+                  isCompleted
+                  onClick={() => setSelectedId(task.id)}
+                  onToggleComplete={() => handleTogglePersonalComplete(task.id, true)}
+                  completing={isCompleting && completingTaskId === task.id}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
 
   const modalColumns = (() => {
     if (!selectedTask) return personalColumns;
@@ -441,14 +518,7 @@ export function InboxDashboard({
                 />
               )}
             </div>
-            <TaskListView
-              tasks={personalTasks}
-              columns={personalColumns}
-              users={users}
-              canEdit
-              onTaskClick={setSelectedId}
-              currentUserId={currentUserId}
-            />
+            {renderPersonalTaskLists()}
           </>
         )}
 
@@ -505,23 +575,7 @@ export function InboxDashboard({
           <div className="mb-4">
             <QuickAddTask workspaceId={personalWorkspaceId} currentUserId={currentUserId} />
           </div>
-          {sortedPersonalTasks.length === 0 ? (
-            <EmptyState
-              icon={<IconInbox size={28} />}
-              title="No personal tasks yet"
-              description="Add a task above to get started."
-            />
-          ) : (
-            <div className="dashboard-task-scroll space-y-2">
-              {sortedPersonalTasks.map((task) => (
-                <TaskListRow
-                  key={task.id}
-                  task={task}
-                  onClick={() => setSelectedId(task.id)}
-                />
-              ))}
-            </div>
-          )}
+          {renderPersonalTaskLists()}
         </section>
 
         <section className="mb-8 sm:mb-10">

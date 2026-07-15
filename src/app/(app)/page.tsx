@@ -11,6 +11,7 @@ import { getTasksUser } from "@/lib/access";
 import {
   getBoardDashboardSummaries,
   getExternallySharedTasks,
+  getPersonalCompletedTasks,
   getPersonalInboxTasks,
   getSharedUpcomingTasks,
 } from "@/lib/domain/task-queries";
@@ -29,9 +30,10 @@ export default async function DashboardPage({
   if (!access.ok) redirect("/login");
 
   const workspace = await ensurePersonalWorkspace(access.user.id);
-  const [personalTasks, boardSummaries, sharedUpcoming, externalShared, users, teamMemberships] =
+  const [personalTasks, completedPersonalTasks, boardSummaries, sharedUpcoming, externalShared, users, teamMemberships] =
     await Promise.all([
       getPersonalInboxTasks(access.user.id),
+      getPersonalCompletedTasks(access.user.id),
       getBoardDashboardSummaries(access.user.id, access.user.systemRole),
       getSharedUpcomingTasks(access.user.id, access.user.systemRole),
       getExternallySharedTasks(access.user.id),
@@ -63,6 +65,7 @@ export default async function DashboardPage({
       <InboxDashboard
         personalWorkspaceId={workspace.id}
         personalTasks={personalTasks}
+        completedPersonalTasks={completedPersonalTasks}
         boardSummaries={boardSummaries}
         sharedUpcoming={sharedUpcoming}
         externalShared={externalShared}

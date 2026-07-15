@@ -348,6 +348,11 @@ export async function getExternallySharedTasks(userId: string) {
   return withTaskAttachments(tasks);
 }
 
+const personalTaskScope = (userId: string, workspaceId: string) => ({
+  workspaceId,
+  OR: [{ createdById: userId }, { assignees: { some: { userId } } }],
+});
+
 export async function getPersonalInboxTasks(userId: string) {
   const personal = await prisma.taskWorkspace.findFirst({
     where: { ownerId: userId, type: TaskWorkspaceType.PERSONAL },
@@ -357,14 +362,28 @@ export async function getPersonalInboxTasks(userId: string) {
 
   const tasks = await prisma.task.findMany({
     where: {
-      workspaceId: personal.id,
+      ...personalTaskScope(userId, personal.id),
       status: TaskStatus.OPEN,
-      OR: [
-        { createdById: userId },
-        { assignees: { some: { userId } } },
-      ],
     },
     orderBy: [{ dueDate: "asc" }, { position: "asc" }],
+    include: taskInclude,
+  });
+  return withTaskAttachments(tasks);
+}
+
+export async function getPersonalCompletedTasks(userId: string) {
+  const personal = await prisma.taskWorkspace.findFirst({
+    where: { ownerId: userId, type: TaskWorkspaceType.PERSONAL },
+    select: { id: true },
+  });
+  if (!personal) return [];
+
+  const tasks = await prisma.task.findMany({
+    where: {
+      ...personalTaskScope(userId, personal.id),
+      status: TaskStatus.COMPLETED,
+    },
+    orderBy: [{ completedAt: "desc" }, { updatedAt: "desc" }],
     include: taskInclude,
   });
   return withTaskAttachments(tasks);
