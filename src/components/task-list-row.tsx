@@ -12,7 +12,7 @@ export function TaskListRow({
   sourceLabel,
   isCompleted = false,
   onToggleComplete,
-  completing = false,
+  pendingComplete = false,
 }: {
   task: TaskWithRelations;
   onClick?: () => void;
@@ -20,7 +20,7 @@ export function TaskListRow({
   sourceLabel?: string;
   isCompleted?: boolean;
   onToggleComplete?: () => void;
-  completing?: boolean;
+  pendingComplete?: boolean;
 }) {
   if (!task) return null;
 
@@ -31,7 +31,7 @@ export function TaskListRow({
         e.stopPropagation();
         onToggleComplete();
       }}
-      disabled={completing}
+      disabled={pendingComplete}
       aria-label={isCompleted ? "Reopen task" : "Complete task"}
       className="touch-target flex shrink-0 items-center justify-center self-start sm:self-center"
     >
@@ -40,7 +40,7 @@ export function TaskListRow({
           isCompleted
             ? "border-brand-600 bg-brand-600 text-white"
             : "border-slate-300 bg-white group-hover:border-brand-400"
-        } ${completing ? "opacity-50" : ""}`}
+        }`}
       >
         {isCompleted && <IconCheck size={12} strokeWidth={3} />}
       </span>

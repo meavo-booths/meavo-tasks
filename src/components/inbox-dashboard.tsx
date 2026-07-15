@@ -281,8 +281,11 @@ export function InboxDashboard({
   initialTaskId?: string;
 }) {
   const router = useRouter();
-  const [isCompleting, startCompleteTransition] = useTransition();
-  const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
+  const [, startCompleteTransition] = useTransition();
+  const [optimisticTicks, setOptimisticTicks] = useState<Set<string>>(new Set());
+  const [optimisticMoves, setOptimisticMoves] = useState<
+    Map<string, "complete" | "reopen">
+  >(new Map());
   const [completeError, setCompleteError] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<MobileTab>("today");
   const [expandedBoards, setExpandedBoards] = useState<Set<string>>(new Set());
@@ -318,6 +321,29 @@ export function InboxDashboard({
     [personalTasks]
   );
 
+  const displayOpenPersonalTasks = useMemo(
+    () =>
+      sortTasksByDeadlineAndUrgency([
+        ...sortedPersonalTasks.filter(
+          (task) => optimisticMoves.get(task.id) !== "complete"
+        ),
+        ...completedPersonalTasks.filter(
+          (task) => optimisticMoves.get(task.id) === "reopen"
+        ),
+      ]),
+    [sortedPersonalTasks, completedPersonalTasks, optimisticMoves]
+  );
+
+  const displayCompletedPersonalTasks = useMemo(() => {
+    const newlyCompleted = sortedPersonalTasks.filter(
+      (task) => optimisticMoves.get(task.id) === "complete"
+    );
+    const stillCompleted = completedPersonalTasks.filter(
+      (task) => optimisticMoves.get(task.id) !== "reopen"
+    );
+    return [...newlyCompleted, ...stillCompleted];
+  }, [sortedPersonalTasks, completedPersonalTasks, optimisticMoves]);
+
   const todayCount = todayItems.length;
 
   const allTasks = [
@@ -331,14 +357,50 @@ export function InboxDashboard({
 
   function handleTogglePersonalComplete(taskId: string, isCompleted: boolean) {
     setCompleteError(null);
-    setCompletingTaskId(taskId);
+    const direction = isCompleted ? "reopen" : "complete";
+
+    if (direction === "complete") {
+      setOptimisticTicks((prev) => new Set(prev).add(taskId));
+      window.setTimeout(() => {
+        setOptimisticTicks((prev) => {
+          const next = new Set(prev);
+          next.delete(taskId);
+          return next;
+        });
+        setOptimisticMoves((prev) => new Map(prev).set(taskId, direction));
+      }, 120);
+    } else {
+      setOptimisticMoves((prev) => new Map(prev).set(taskId, direction));
+    }
+
     startCompleteTransition(async () => {
-      const result = isCompleted ? await reopenTask(taskId) : await completeTask(taskId);
-      setCompletingTaskId(null);
+      const result = isCompleted
+        ? await reopenTask(taskId)
+        : await completeTask(taskId);
       if (result.error) {
+        setOptimisticTicks((prev) => {
+          const next = new Set(prev);
+          next.delete(taskId);
+          return next;
+        });
+        setOptimisticMoves((prev) => {
+          const next = new Map(prev);
+          next.delete(taskId);
+          return next;
+        });
         setCompleteError(result.error);
         return;
       }
+      setOptimisticTicks((prev) => {
+        const next = new Set(prev);
+        next.delete(taskId);
+        return next;
+      });
+      setOptimisticMoves((prev) => {
+        const next = new Map(prev);
+        next.delete(taskId);
+        return next;
+      });
       router.refresh();
     });
   }
@@ -351,45 +413,47 @@ export function InboxDashboard({
             {completeError}
           </p>
         )}
-        {sortedPersonalTasks.length === 0 && completedPersonalTasks.length === 0 ? (
+        {displayOpenPersonalTasks.length === 0 &&
+        displayCompletedPersonalTasks.length === 0 ? (
           <EmptyState
             icon={<IconInbox size={28} />}
             title="No personal tasks yet"
             description="Add a task above to get started."
           />
-        ) : sortedPersonalTasks.length === 0 ? (
+        ) : displayOpenPersonalTasks.length === 0 ? (
           <p className="text-sm text-slate-500">No open personal tasks.</p>
         ) : (
           <div className="dashboard-task-scroll space-y-2">
-            {sortedPersonalTasks.map((task) => (
+            {displayOpenPersonalTasks.map((task) => (
               <TaskListRow
                 key={task.id}
                 task={task}
+                isCompleted={optimisticTicks.has(task.id)}
                 onClick={() => setSelectedId(task.id)}
                 onToggleComplete={() => handleTogglePersonalComplete(task.id, false)}
-                completing={isCompleting && completingTaskId === task.id}
+                pendingComplete={optimisticMoves.has(task.id) || optimisticTicks.has(task.id)}
               />
             ))}
           </div>
         )}
 
-        {completedPersonalTasks.length > 0 && (
+        {displayCompletedPersonalTasks.length > 0 && (
           <div className="mt-6">
             <div className="mb-3 flex items-center gap-2">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Completed
               </h3>
-              <Badge tone="neutral">{completedPersonalTasks.length}</Badge>
+              <Badge tone="neutral">{displayCompletedPersonalTasks.length}</Badge>
             </div>
             <div className="dashboard-task-scroll space-y-2">
-              {completedPersonalTasks.map((task) => (
+              {displayCompletedPersonalTasks.map((task) => (
                 <TaskListRow
                   key={task.id}
                   task={task}
                   isCompleted
                   onClick={() => setSelectedId(task.id)}
                   onToggleComplete={() => handleTogglePersonalComplete(task.id, true)}
-                  completing={isCompleting && completingTaskId === task.id}
+                  pendingComplete={optimisticMoves.has(task.id)}
                 />
               ))}
             </div>
