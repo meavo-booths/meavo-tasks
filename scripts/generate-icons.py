@@ -58,11 +58,11 @@ def main() -> None:
     ICONS_DIR.mkdir(parents=True, exist_ok=True)
 
     outputs = {
-        ICONS_DIR / "icon-192.png": (192, 0.72),
-        ICONS_DIR / "icon-512.png": (512, 0.72),
-        ICONS_DIR / "icon-maskable.png": (512, 0.58),
-        ICONS_DIR / "apple-touch-icon.png": (180, 0.72),
-        APP_DIR / "apple-icon.png": (180, 0.72),
+        ICONS_DIR / "icon-192.png": (192, 0.86),
+        ICONS_DIR / "icon-512.png": (512, 0.86),
+        ICONS_DIR / "icon-maskable.png": (512, 0.68),
+        ICONS_DIR / "apple-touch-icon.png": (180, 0.88),
+        APP_DIR / "apple-icon.png": (180, 0.88),
     }
 
     for path, (size, content_scale) in outputs.items():
