@@ -11,14 +11,12 @@ export function PriorityHighlightSection({
   onToggleComplete,
   hiddenTaskIds,
   pendingTaskIds,
-  optimisticTicks,
 }: {
   boards: BoardDashboardSummary[];
   onTaskClick: (taskId: string) => void;
   onToggleComplete?: (taskId: string, isCompleted: boolean) => void;
   hiddenTaskIds?: Set<string>;
   pendingTaskIds?: Set<string>;
-  optimisticTicks?: Set<string>;
 }) {
   const highlight = getPriorityHighlight(boards);
   if (!highlight) return null;
@@ -43,7 +41,6 @@ export function PriorityHighlightSection({
             key={task.id}
             task={task}
             sourceLabel={boardName}
-            isCompleted={optimisticTicks?.has(task.id)}
             onClick={() => onTaskClick(task.id)}
             onToggleComplete={
               canComplete && onToggleComplete

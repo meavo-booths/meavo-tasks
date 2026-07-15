@@ -204,13 +204,19 @@ function BoardSummaryCard({
 function MobileTodayView({
   items,
   onTaskClick,
+  onToggleComplete,
+  optimisticTicks,
+  pendingTaskIds,
 }: {
   items: ReturnType<typeof buildTodayTaskItems>;
   onTaskClick: (taskId: string) => void;
+  onToggleComplete?: (taskId: string, isCompleted: boolean) => void;
+  optimisticTicks?: Set<string>;
+  pendingTaskIds?: Set<string>;
 }) {
   const tasks = items.map((item) => item.task);
   const groups = groupTasksByDueDate(tasks);
-  const sourceById = Object.fromEntries(items.map((item) => [item.task.id, item.sourceLabel]));
+  const itemById = Object.fromEntries(items.map((item) => [item.task.id, item]));
   const hasTasks = groups.overdue.length > 0 || groups.today.length > 0;
 
   if (!hasTasks) {
@@ -237,14 +243,24 @@ function MobileTodayView({
               <Badge tone={key === "overdue" ? "danger" : "warning"}>{sectionTasks.length}</Badge>
             </div>
             <div className="space-y-2">
-              {sectionTasks.map((task) => (
-                <TaskListRow
-                  key={task.id}
-                  task={task}
-                  sourceLabel={sourceById[task.id]}
-                  onClick={() => onTaskClick(task.id)}
-                />
-              ))}
+              {sectionTasks.map((task) => {
+                const item = itemById[task.id];
+                return (
+                  <TaskListRow
+                    key={task.id}
+                    task={task}
+                    sourceLabel={item?.sourceLabel}
+                    isCompleted={optimisticTicks?.has(task.id)}
+                    onClick={() => onTaskClick(task.id)}
+                    onToggleComplete={
+                      item?.canComplete && onToggleComplete
+                        ? () => onToggleComplete(task.id, false)
+                        : undefined
+                    }
+                    pendingComplete={pendingTaskIds?.has(task.id)}
+                  />
+                );
+              })}
             </div>
           </section>
         );
@@ -286,9 +302,6 @@ export function InboxDashboard({
   const [optimisticMoves, setOptimisticMoves] = useState<
     Map<string, "complete" | "reopen">
   >(new Map());
-  const [optimisticBoardTicks, setOptimisticBoardTicks] = useState<Set<string>>(new Set());
-  const [hiddenBoardTaskIds, setHiddenBoardTaskIds] = useState<Set<string>>(new Set());
-  const [pendingBoardTaskIds, setPendingBoardTaskIds] = useState<Set<string>>(new Set());
   const [completeError, setCompleteError] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<MobileTab>("today");
   const [expandedBoards, setExpandedBoards] = useState<Set<string>>(new Set());
@@ -347,7 +360,29 @@ export function InboxDashboard({
     return [...newlyCompleted, ...stillCompleted];
   }, [sortedPersonalTasks, completedPersonalTasks, optimisticMoves]);
 
-  const todayCount = todayItems.length;
+  const displayTodayItems = useMemo(
+    () =>
+      todayItems.filter((item) => optimisticMoves.get(item.task.id) !== "complete"),
+    [todayItems, optimisticMoves]
+  );
+
+  const pendingCompleteTaskIds = useMemo(() => {
+    const pending = new Set<string>(optimisticMoves.keys());
+    for (const taskId of optimisticTicks) pending.add(taskId);
+    return pending;
+  }, [optimisticMoves, optimisticTicks]);
+
+  const hiddenHighlightTaskIds = useMemo(
+    () =>
+      new Set(
+        [...optimisticMoves.entries()]
+          .filter(([, direction]) => direction === "complete")
+          .map(([taskId]) => taskId)
+      ),
+    [optimisticMoves]
+  );
+
+  const todayCount = displayTodayItems.length;
 
   const allTasks = [
     ...personalTasks,
@@ -358,7 +393,7 @@ export function InboxDashboard({
   ];
   const selectedTask = allTasks.find((t) => t?.id === selectedId) ?? null;
 
-  function handleTogglePersonalComplete(taskId: string, isCompleted: boolean) {
+  function handleToggleTaskComplete(taskId: string, isCompleted: boolean) {
     setCompleteError(null);
     const direction = isCompleted ? "reopen" : "complete";
 
@@ -408,71 +443,17 @@ export function InboxDashboard({
     });
   }
 
-  function handleToggleBoardTaskComplete(taskId: string) {
-    setCompleteError(null);
-    setOptimisticBoardTicks((prev) => new Set(prev).add(taskId));
-    setPendingBoardTaskIds((prev) => new Set(prev).add(taskId));
-
-    window.setTimeout(() => {
-      setOptimisticBoardTicks((prev) => {
-        const next = new Set(prev);
-        next.delete(taskId);
-        return next;
-      });
-      setHiddenBoardTaskIds((prev) => new Set(prev).add(taskId));
-    }, 120);
-
-    startCompleteTransition(async () => {
-      const result = await completeTask(taskId);
-      setPendingBoardTaskIds((prev) => {
-        const next = new Set(prev);
-        next.delete(taskId);
-        return next;
-      });
-      if (result.error) {
-        setOptimisticBoardTicks((prev) => {
-          const next = new Set(prev);
-          next.delete(taskId);
-          return next;
-        });
-        setHiddenBoardTaskIds((prev) => {
-          const next = new Set(prev);
-          next.delete(taskId);
-          return next;
-        });
-        setCompleteError(result.error);
-        return;
-      }
-      setHiddenBoardTaskIds((prev) => {
-        const next = new Set(prev);
-        next.delete(taskId);
-        return next;
-      });
-      router.refresh();
-    });
-  }
-
   function renderPriorityHighlights() {
     return (
-      <>
-        {completeError && (
-          <p className="mb-3 text-sm text-red-600" role="alert">
-            {completeError}
-          </p>
-        )}
-        <PriorityHighlightSection
-          boards={boardSummaries}
-          onTaskClick={setSelectedId}
-          onToggleComplete={(taskId, isCompleted) => {
-            if (!isCompleted) handleToggleBoardTaskComplete(taskId);
-          }}
-          hiddenTaskIds={hiddenBoardTaskIds}
-          pendingTaskIds={
-            new Set([...pendingBoardTaskIds, ...optimisticBoardTicks])
-          }
-          optimisticTicks={optimisticBoardTicks}
-        />
-      </>
+      <PriorityHighlightSection
+        boards={boardSummaries}
+        onTaskClick={setSelectedId}
+        onToggleComplete={(taskId, isCompleted) => {
+          if (!isCompleted) handleToggleTaskComplete(taskId, false);
+        }}
+        hiddenTaskIds={hiddenHighlightTaskIds}
+        pendingTaskIds={pendingCompleteTaskIds}
+      />
     );
   }
 
@@ -501,7 +482,7 @@ export function InboxDashboard({
                 task={task}
                 isCompleted={optimisticTicks.has(task.id)}
                 onClick={() => setSelectedId(task.id)}
-                onToggleComplete={() => handleTogglePersonalComplete(task.id, false)}
+                onToggleComplete={() => handleToggleTaskComplete(task.id, false)}
                 pendingComplete={optimisticMoves.has(task.id) || optimisticTicks.has(task.id)}
               />
             ))}
@@ -523,7 +504,7 @@ export function InboxDashboard({
                   task={task}
                   isCompleted
                   onClick={() => setSelectedId(task.id)}
-                  onToggleComplete={() => handleTogglePersonalComplete(task.id, true)}
+                  onToggleComplete={() => handleToggleTaskComplete(task.id, true)}
                   pendingComplete={optimisticMoves.has(task.id)}
                 />
               ))}
@@ -637,7 +618,18 @@ export function InboxDashboard({
                 />
               </div>
             )}
-            <MobileTodayView items={todayItems} onTaskClick={setSelectedId} />
+            {completeError && (
+              <p className="mb-3 text-sm text-red-600" role="alert">
+                {completeError}
+              </p>
+            )}
+            <MobileTodayView
+              items={displayTodayItems}
+              onTaskClick={setSelectedId}
+              onToggleComplete={handleToggleTaskComplete}
+              optimisticTicks={optimisticTicks}
+              pendingTaskIds={pendingCompleteTaskIds}
+            />
           </>
         )}
 
@@ -699,7 +691,18 @@ export function InboxDashboard({
       <div className="hidden md:block">
         <section className="mb-8 sm:mb-10">
           <SectionHeader title="Today" icon={<IconInbox size={17} />} />
-          <MobileTodayView items={todayItems} onTaskClick={setSelectedId} />
+          {completeError && (
+            <p className="mb-3 text-sm text-red-600" role="alert">
+              {completeError}
+            </p>
+          )}
+          <MobileTodayView
+            items={displayTodayItems}
+            onTaskClick={setSelectedId}
+            onToggleComplete={handleToggleTaskComplete}
+            optimisticTicks={optimisticTicks}
+            pendingTaskIds={pendingCompleteTaskIds}
+          />
         </section>
 
         <section className="mb-8 sm:mb-10">
