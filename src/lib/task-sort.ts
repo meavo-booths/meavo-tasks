@@ -37,7 +37,7 @@ function dueGroupRank(task: TaskWithRelations) {
 }
 
 /** Personal task ordering: overdue and soonest deadlines first, then priority. */
-export function sortTasksByDeadlineAndUrgency(tasks: TaskWithRelations[]) {
+export function sortTasksByDeadlineAndUrgency<T extends TaskWithRelations>(tasks: T[]): T[] {
   return [...tasks].sort((a, b) => {
     const groupDiff = dueGroupRank(a) - dueGroupRank(b);
     if (groupDiff !== 0) return groupDiff;
