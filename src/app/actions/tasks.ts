@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { TaskAssigneeScope, TaskLinkedApp, TaskStatus } from "@prisma/client";
+import { TaskAssigneeScope, TaskLinkedApp, TaskStatus, TaskWorkspaceType } from "@prisma/client";
 import { getTasksUser } from "@/lib/access";
 import {
   createTaskExternalLink,
@@ -9,7 +9,7 @@ import {
 } from "@/lib/integrations/external-link";
 import { resolveExternalLink } from "@/lib/integrations/link-resolver";
 import { formatLinkedEntityDescription } from "@/lib/integrations/linked-description";
-import { requireWorkspaceEdit } from "@/lib/domain/task-authz";
+import { requireTaskEdit, requireWorkspaceEdit } from "@/lib/domain/task-authz";
 import {
   canAccessTask,
   getTaskById,
@@ -31,6 +31,28 @@ async function requireUser() {
   const access = await getTasksUser();
   if (!access.ok) return { error: access.error } as const;
   return { user: access.user } as const;
+}
+
+async function filterMemberAssigneeIds(workspaceId: string, userIds: string[]) {
+  const unique = [...new Set(userIds.filter(Boolean))];
+  if (unique.length === 0) return [];
+
+  const workspace = await prisma.taskWorkspace.findUnique({
+    where: { id: workspaceId },
+    select: { type: true },
+  });
+  if (!workspace) return [];
+
+  if (workspace.type === TaskWorkspaceType.PERSONAL) {
+    const users = await prisma.user.findMany({
+      where: { id: { in: unique } },
+      select: { id: true },
+    });
+    return users.map((user) => user.id);
+  }
+
+  const boardMemberIds = await getWorkspaceBoardMemberIds(workspaceId);
+  return unique.filter((id) => boardMemberIds.has(id));
 }
 
 /** Fire-and-forget "task assigned" notifications, skipping self-assignment. */
@@ -134,6 +156,13 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
     }
   }
 
+  if (workspace?.type === "PERSONAL" && requestedAssignees.length > 0) {
+    assigneeIds = await filterMemberAssigneeIds(workspaceId, assigneeIds);
+    if (assigneeIds.length === 0) {
+      return { error: "Select at least one valid assignee." };
+    }
+  }
+
   const userDescription = (formData.get("description") as string)?.trim() ?? "";
   const description =
     resolvedLink && linkedApp
@@ -192,11 +221,7 @@ export async function updateTask(formData: FormData): Promise<ActionResult> {
   if (!task) return { error: "Task not found." };
 
   try {
-    await requireWorkspaceEdit(
-      auth.user.id,
-      task.workspaceId,
-      auth.user.systemRole
-    );
+    await requireTaskEdit(auth.user.id, taskId, auth.user.systemRole);
   } catch {
     return { error: "You do not have permission to edit this task." };
   }
@@ -231,11 +256,7 @@ export async function completeTask(taskId: string): Promise<ActionResult> {
   if (!task) return { error: "Task not found." };
 
   try {
-    await requireWorkspaceEdit(
-      auth.user.id,
-      task.workspaceId,
-      auth.user.systemRole
-    );
+    await requireTaskEdit(auth.user.id, taskId, auth.user.systemRole);
   } catch {
     return { error: "You do not have permission to complete this task." };
   }
@@ -269,11 +290,7 @@ export async function reopenTask(taskId: string): Promise<ActionResult> {
   if (!task) return { error: "Task not found." };
 
   try {
-    await requireWorkspaceEdit(
-      auth.user.id,
-      task.workspaceId,
-      auth.user.systemRole
-    );
+    await requireTaskEdit(auth.user.id, taskId, auth.user.systemRole);
   } catch {
     return { error: "You do not have permission to reopen this task." };
   }
@@ -378,8 +395,7 @@ export async function setTaskMemberAssignees(
     return { error: "You do not have permission to assign this task." };
   }
 
-  const boardMemberIds = await getWorkspaceBoardMemberIds(task.workspaceId);
-  const uniqueIds = [...new Set(userIds.filter((id) => boardMemberIds.has(id)))];
+  const uniqueIds = await filterMemberAssigneeIds(task.workspaceId, userIds);
   const previousAssigneeIds = new Set(task.assignees.map((a) => a.userId));
 
   await prisma.$transaction([
@@ -496,8 +512,11 @@ export async function addTaskAssignee(
   }
 
   const boardMemberIds = await getWorkspaceBoardMemberIds(task.workspaceId);
-  if (scope === TaskAssigneeScope.MEMBER && !boardMemberIds.has(userId)) {
-    return { error: "Only board members can be assigned as owners." };
+  if (scope === TaskAssigneeScope.MEMBER) {
+    const allowed = await filterMemberAssigneeIds(task.workspaceId, [userId]);
+    if (!allowed.includes(userId)) {
+      return { error: "Only valid assignees can be added as owners." };
+    }
   }
   if (scope === TaskAssigneeScope.EXTERNAL && boardMemberIds.has(userId)) {
     return { error: "Board members should be assigned as owners, not external." };

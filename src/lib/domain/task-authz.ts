@@ -74,6 +74,7 @@ export async function getTaskAccess(
   const task = await prisma.task.findUnique({
     where: { id: taskId },
     include: {
+      workspace: { select: { type: true } },
       assignees: {
         where: { userId },
         select: { scope: true },
@@ -93,6 +94,13 @@ export async function getTaskAccess(
       canEdit: workspaceAccess.canEdit,
       isExternalOnly: false,
     };
+  }
+
+  const memberAssignee = task.assignees.some(
+    (a) => a.scope === TaskAssigneeScope.MEMBER
+  );
+  if (task.workspace.type === TaskWorkspaceType.PERSONAL && memberAssignee) {
+    return { canView: true, canEdit: true, isExternalOnly: false };
   }
 
   const external = task.assignees.some(

@@ -17,7 +17,7 @@ import { QuickAddTask } from "@/components/quick-add-task";
 import { IconBoard, IconChevronDown, IconInbox, IconPlus } from "@/components/icons";
 import { Badge, Button, Card, EmptyState, SectionHeader } from "@/components/ui";
 import { DUE_GROUP_LABELS, groupTasksByDueDate } from "@/lib/dates";
-import type { BoardDashboardSummary, TaskWithRelations } from "@/lib/domain/task-queries";
+import type { BoardDashboardSummary, PersonalDelegatedTask, TaskWithRelations } from "@/lib/domain/task-queries";
 import { sortTasksByDeadlineAndUrgency } from "@/lib/task-sort";
 import { buildTodayTaskItems } from "@/lib/today-tasks";
 import { TaskWorkspaceType } from "@prisma/client";
@@ -269,10 +269,17 @@ function MobileTodayView({
   );
 }
 
+function delegatedSourceLabel(task: PersonalDelegatedTask) {
+  const owner = task.workspace.owner;
+  return `From ${owner.name ?? owner.email}`;
+}
+
 export function InboxDashboard({
   personalWorkspaceId,
   personalTasks,
   completedPersonalTasks,
+  delegatedPersonalTasks,
+  delegatedCompletedPersonalTasks,
   boardSummaries,
   sharedUpcoming,
   externalShared,
@@ -286,6 +293,8 @@ export function InboxDashboard({
   personalWorkspaceId: string;
   personalTasks: TaskWithRelations[];
   completedPersonalTasks: TaskWithRelations[];
+  delegatedPersonalTasks: PersonalDelegatedTask[];
+  delegatedCompletedPersonalTasks: PersonalDelegatedTask[];
   boardSummaries: BoardDashboardSummary[];
   sharedUpcoming: SharedTask[];
   externalShared: SharedTask[];
@@ -313,6 +322,8 @@ export function InboxDashboard({
     const visible =
       personalTasks.some((t) => t?.id === initialTaskId) ||
       completedPersonalTasks.some((t) => t?.id === initialTaskId) ||
+      delegatedPersonalTasks.some((t) => t?.id === initialTaskId) ||
+      delegatedCompletedPersonalTasks.some((t) => t?.id === initialTaskId) ||
       boardSummaries.some((b) => b.tasks.some((t) => t?.id === initialTaskId)) ||
       sharedUpcoming.some((t) => t?.id === initialTaskId) ||
       externalShared.some((t) => t?.id === initialTaskId);
@@ -324,12 +335,18 @@ export function InboxDashboard({
     () =>
       buildTodayTaskItems({
         personalTasks,
+        delegatedPersonalTasks,
         boardSummaries,
         sharedUpcoming,
         externalShared,
         currentUserId,
       }),
-    [personalTasks, boardSummaries, sharedUpcoming, externalShared, currentUserId]
+    [personalTasks, delegatedPersonalTasks, boardSummaries, sharedUpcoming, externalShared, currentUserId]
+  );
+
+  const sortedDelegatedTasks = useMemo(
+    () => sortTasksByDeadlineAndUrgency(delegatedPersonalTasks),
+    [delegatedPersonalTasks]
   );
 
   const sortedPersonalTasks = useMemo(
@@ -360,6 +377,29 @@ export function InboxDashboard({
     return [...newlyCompleted, ...stillCompleted];
   }, [sortedPersonalTasks, completedPersonalTasks, optimisticMoves]);
 
+  const displayDelegatedOpenTasks = useMemo(
+    () =>
+      sortTasksByDeadlineAndUrgency([
+        ...sortedDelegatedTasks.filter(
+          (task) => optimisticMoves.get(task.id) !== "complete"
+        ),
+        ...delegatedCompletedPersonalTasks.filter(
+          (task) => optimisticMoves.get(task.id) === "reopen"
+        ),
+      ]),
+    [sortedDelegatedTasks, delegatedCompletedPersonalTasks, optimisticMoves]
+  );
+
+  const displayDelegatedCompletedTasks = useMemo(() => {
+    const newlyCompleted = sortedDelegatedTasks.filter(
+      (task) => optimisticMoves.get(task.id) === "complete"
+    );
+    const stillCompleted = delegatedCompletedPersonalTasks.filter(
+      (task) => optimisticMoves.get(task.id) !== "reopen"
+    );
+    return [...newlyCompleted, ...stillCompleted];
+  }, [sortedDelegatedTasks, delegatedCompletedPersonalTasks, optimisticMoves]);
+
   const displayTodayItems = useMemo(
     () =>
       todayItems.filter((item) => optimisticMoves.get(item.task.id) !== "complete"),
@@ -387,11 +427,35 @@ export function InboxDashboard({
   const allTasks = [
     ...personalTasks,
     ...completedPersonalTasks,
+    ...delegatedPersonalTasks,
+    ...delegatedCompletedPersonalTasks,
     ...boardSummaries.flatMap((b) => b.tasks),
     ...sharedUpcoming,
     ...externalShared,
   ];
   const selectedTask = allTasks.find((t) => t?.id === selectedId) ?? null;
+
+  const externalTaskIds = useMemo(
+    () => new Set(externalShared.map((task) => task.id)),
+    [externalShared]
+  );
+
+  const delegatedTaskIds = useMemo(
+    () =>
+      new Set([
+        ...delegatedPersonalTasks.map((task) => task.id),
+        ...delegatedCompletedPersonalTasks.map((task) => task.id),
+      ]),
+    [delegatedPersonalTasks, delegatedCompletedPersonalTasks]
+  );
+
+  const selectedTaskCanEdit = selectedTask
+    ? !externalTaskIds.has(selectedTask.id) &&
+      (selectedTask.workspaceId === personalWorkspaceId ||
+        delegatedTaskIds.has(selectedTask.id) ||
+        (boardSummaries.find((board) => board.id === selectedTask.workspaceId)?.canEdit ??
+          false))
+    : false;
 
   function handleToggleTaskComplete(taskId: string, isCompleted: boolean) {
     setCompleteError(null);
@@ -466,7 +530,9 @@ export function InboxDashboard({
           </p>
         )}
         {displayOpenPersonalTasks.length === 0 &&
-        displayCompletedPersonalTasks.length === 0 ? (
+        displayDelegatedOpenTasks.length === 0 &&
+        displayCompletedPersonalTasks.length === 0 &&
+        displayDelegatedCompletedTasks.length === 0 ? (
           <EmptyState
             icon={<IconInbox size={28} />}
             title="No personal tasks yet"
@@ -489,19 +555,57 @@ export function InboxDashboard({
           </div>
         )}
 
-        {displayCompletedPersonalTasks.length > 0 && (
+        {displayDelegatedOpenTasks.length > 0 && (
+          <div className="mt-6">
+            <div className="mb-3 flex items-center gap-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Shared with me
+              </h3>
+              <Badge tone="neutral">{displayDelegatedOpenTasks.length}</Badge>
+            </div>
+            <div className="dashboard-task-scroll space-y-2">
+              {displayDelegatedOpenTasks.map((task) => (
+                <TaskListRow
+                  key={task.id}
+                  task={task}
+                  sourceLabel={delegatedSourceLabel(task)}
+                  isCompleted={optimisticTicks.has(task.id)}
+                  onClick={() => setSelectedId(task.id)}
+                  onToggleComplete={() => handleToggleTaskComplete(task.id, false)}
+                  pendingComplete={optimisticMoves.has(task.id) || optimisticTicks.has(task.id)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {(displayCompletedPersonalTasks.length > 0 ||
+          displayDelegatedCompletedTasks.length > 0) && (
           <div className="mt-6">
             <div className="mb-3 flex items-center gap-2">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Completed
               </h3>
-              <Badge tone="neutral">{displayCompletedPersonalTasks.length}</Badge>
+              <Badge tone="neutral">
+                {displayCompletedPersonalTasks.length + displayDelegatedCompletedTasks.length}
+              </Badge>
             </div>
             <div className="dashboard-task-scroll space-y-2">
               {displayCompletedPersonalTasks.map((task) => (
                 <TaskListRow
                   key={task.id}
                   task={task}
+                  isCompleted
+                  onClick={() => setSelectedId(task.id)}
+                  onToggleComplete={() => handleToggleTaskComplete(task.id, true)}
+                  pendingComplete={optimisticMoves.has(task.id)}
+                />
+              ))}
+              {displayDelegatedCompletedTasks.map((task) => (
+                <TaskListRow
+                  key={task.id}
+                  task={task}
+                  sourceLabel={delegatedSourceLabel(task)}
                   isCompleted
                   onClick={() => setSelectedId(task.id)}
                   onToggleComplete={() => handleToggleTaskComplete(task.id, true)}
@@ -614,6 +718,7 @@ export function InboxDashboard({
               <div ref={quickAddRef} className="mb-4">
                 <QuickAddTask
                   workspaceId={personalWorkspaceId}
+                  assigneeOptions={users}
                   currentUserId={currentUserId}
                 />
               </div>
@@ -641,6 +746,7 @@ export function InboxDashboard({
               {(showMobileAdd || personalTasks.length === 0) && (
                 <QuickAddTask
                   workspaceId={personalWorkspaceId}
+                  assigneeOptions={users}
                   currentUserId={currentUserId}
                 />
               )}
@@ -708,7 +814,11 @@ export function InboxDashboard({
         <section className="mb-8 sm:mb-10">
           <SectionHeader title="My tasks" icon={<IconInbox size={17} />} />
           <div className="mb-4">
-            <QuickAddTask workspaceId={personalWorkspaceId} currentUserId={currentUserId} />
+            <QuickAddTask
+              workspaceId={personalWorkspaceId}
+              assigneeOptions={users}
+              currentUserId={currentUserId}
+            />
           </div>
           {renderPersonalTaskLists()}
         </section>
@@ -747,7 +857,8 @@ export function InboxDashboard({
           setSelectedId(null);
           router.refresh();
         }}
-        canEdit
+        canEdit={selectedTaskCanEdit}
+        personalWorkspaceId={personalWorkspaceId}
         workspaceType={modalWorkspaceType}
         boardMemberUsers={modalAssignees?.members}
         externalCandidateUsers={modalAssignees?.external}

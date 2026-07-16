@@ -330,7 +330,10 @@ export async function getWorkspaceAssigneeOptions(workspaceId: string) {
   }
 
   if (workspace.type === TaskWorkspaceType.PERSONAL) {
-    return [workspace.owner];
+    return prisma.user.findMany({
+      select: { id: true, name: true, email: true },
+      orderBy: { name: "asc" },
+    });
   }
 
   return [...users.values()].sort((a, b) =>

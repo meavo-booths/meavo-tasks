@@ -40,6 +40,7 @@ export function TaskDetailModal({
   open,
   onClose,
   canEdit,
+  personalWorkspaceId,
   workspaceType,
   boardMemberUsers,
   externalCandidateUsers,
@@ -51,6 +52,7 @@ export function TaskDetailModal({
   open: boolean;
   onClose: () => void;
   canEdit: boolean;
+  personalWorkspaceId?: string;
   workspaceType?: TaskWorkspaceType;
   boardMemberUsers?: UserOption[];
   externalCandidateUsers?: UserOption[];
@@ -131,6 +133,16 @@ export function TaskDetailModal({
     !memberOptions.some((u) => u.id === currentUserId);
 
   const effectiveCanEdit = canEdit && !isExternalViewer;
+  const isOwnPersonalTask =
+    workspaceType === TaskWorkspaceType.PERSONAL &&
+    !!personalWorkspaceId &&
+    task?.workspaceId === personalWorkspaceId;
+  const canManageAssignees =
+    effectiveCanEdit &&
+    (workspaceType !== TaskWorkspaceType.PERSONAL || isOwnPersonalTask);
+  const canDelete =
+    effectiveCanEdit &&
+    (workspaceType !== TaskWorkspaceType.PERSONAL || isOwnPersonalTask);
   const isCompleted = task.status === "COMPLETED";
 
   function handleUpdate(formData: FormData) {
@@ -330,9 +342,11 @@ export function TaskDetailModal({
             <Button type="button" variant="secondary" onClick={handleComplete} disabled={pending} className="w-full sm:w-auto">
               {isCompleted ? "Reopen" : "Complete"}
             </Button>
-            <Button type="button" variant="danger" onClick={handleDelete} disabled={pending} className="w-full sm:w-auto">
-              Delete
-            </Button>
+            {canDelete && (
+              <Button type="button" variant="danger" onClick={handleDelete} disabled={pending} className="w-full sm:w-auto">
+                Delete
+              </Button>
+            )}
           </div>
         </form>
       ) : (
@@ -428,7 +442,7 @@ export function TaskDetailModal({
               )}
             </div>
           </>
-        ) : effectiveCanEdit ? (
+        ) : canManageAssignees ? (
           <>
             <p className="mb-2 text-sm font-medium text-slate-700">Assignees</p>
             {renderEditableAssignees(

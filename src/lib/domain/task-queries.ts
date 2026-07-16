@@ -1,5 +1,6 @@
 import {
   SystemRole,
+  TaskAssigneeScope,
   TaskPriority,
   TaskStatus,
   TaskWorkspaceType,
@@ -24,6 +25,13 @@ const taskInclude = {
 } as const;
 
 export type TaskWithRelations = NonNullable<Awaited<ReturnType<typeof getTaskById>>>;
+
+export type PersonalDelegatedTask = TaskWithRelations & {
+  workspace: {
+    id: string;
+    owner: { id: string; name: string | null; email: string };
+  };
+};
 
 export async function getTaskById(taskId: string) {
   const task = await prisma.task.findUnique({
@@ -387,6 +395,62 @@ export async function getPersonalCompletedTasks(userId: string) {
     include: taskInclude,
   });
   return withTaskAttachments(tasks);
+}
+
+export async function getPersonalDelegatedTasks(
+  userId: string
+): Promise<PersonalDelegatedTask[]> {
+  const tasks = await prisma.task.findMany({
+    where: {
+      status: TaskStatus.OPEN,
+      workspace: {
+        type: TaskWorkspaceType.PERSONAL,
+        ownerId: { not: userId },
+      },
+      assignees: {
+        some: { userId, scope: TaskAssigneeScope.MEMBER },
+      },
+    },
+    orderBy: [{ dueDate: "asc" }, { position: "asc" }],
+    include: {
+      ...taskInclude,
+      workspace: {
+        select: {
+          id: true,
+          owner: { select: { id: true, name: true, email: true } },
+        },
+      },
+    },
+  });
+  return withTaskAttachments(tasks) as Promise<PersonalDelegatedTask[]>;
+}
+
+export async function getPersonalDelegatedCompletedTasks(
+  userId: string
+): Promise<PersonalDelegatedTask[]> {
+  const tasks = await prisma.task.findMany({
+    where: {
+      status: TaskStatus.COMPLETED,
+      workspace: {
+        type: TaskWorkspaceType.PERSONAL,
+        ownerId: { not: userId },
+      },
+      assignees: {
+        some: { userId, scope: TaskAssigneeScope.MEMBER },
+      },
+    },
+    orderBy: [{ completedAt: "desc" }, { updatedAt: "desc" }],
+    include: {
+      ...taskInclude,
+      workspace: {
+        select: {
+          id: true,
+          owner: { select: { id: true, name: true, email: true } },
+        },
+      },
+    },
+  });
+  return withTaskAttachments(tasks) as Promise<PersonalDelegatedTask[]>;
 }
 
 export async function canAccessTask(

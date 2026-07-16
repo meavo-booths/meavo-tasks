@@ -12,6 +12,8 @@ import {
   getBoardDashboardSummaries,
   getExternallySharedTasks,
   getPersonalCompletedTasks,
+  getPersonalDelegatedCompletedTasks,
+  getPersonalDelegatedTasks,
   getPersonalInboxTasks,
   getSharedUpcomingTasks,
 } from "@/lib/domain/task-queries";
@@ -30,10 +32,12 @@ export default async function DashboardPage({
   if (!access.ok) redirect("/login");
 
   const workspace = await ensurePersonalWorkspace(access.user.id);
-  const [personalTasks, completedPersonalTasks, boardSummaries, sharedUpcoming, externalShared, users, teamMemberships] =
+  const [personalTasks, completedPersonalTasks, delegatedPersonalTasks, delegatedCompletedPersonalTasks, boardSummaries, sharedUpcoming, externalShared, users, teamMemberships] =
     await Promise.all([
       getPersonalInboxTasks(access.user.id),
       getPersonalCompletedTasks(access.user.id),
+      getPersonalDelegatedTasks(access.user.id),
+      getPersonalDelegatedCompletedTasks(access.user.id),
       getBoardDashboardSummaries(access.user.id, access.user.systemRole),
       getSharedUpcomingTasks(access.user.id, access.user.systemRole),
       getExternallySharedTasks(access.user.id),
@@ -66,6 +70,8 @@ export default async function DashboardPage({
         personalWorkspaceId={workspace.id}
         personalTasks={personalTasks}
         completedPersonalTasks={completedPersonalTasks}
+        delegatedPersonalTasks={delegatedPersonalTasks}
+        delegatedCompletedPersonalTasks={delegatedCompletedPersonalTasks}
         boardSummaries={boardSummaries}
         sharedUpcoming={sharedUpcoming}
         externalShared={externalShared}

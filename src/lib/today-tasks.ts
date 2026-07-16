@@ -1,5 +1,5 @@
 import { isBefore, isSameDay, startOfDay } from "date-fns";
-import type { BoardDashboardSummary, TaskWithRelations } from "@/lib/domain/task-queries";
+import type { BoardDashboardSummary, PersonalDelegatedTask, TaskWithRelations } from "@/lib/domain/task-queries";
 import { TaskWorkspaceType } from "@prisma/client";
 
 export type TodayTaskItem = {
@@ -20,12 +20,14 @@ function isDueTodayOrOverdue(dueDate: Date) {
 
 export function buildTodayTaskItems({
   personalTasks,
+  delegatedPersonalTasks = [],
   boardSummaries,
   sharedUpcoming,
   externalShared,
   currentUserId,
 }: {
   personalTasks: TaskWithRelations[];
+  delegatedPersonalTasks?: PersonalDelegatedTask[];
   boardSummaries: BoardDashboardSummary[];
   sharedUpcoming: SharedTask[];
   externalShared: SharedTask[];
@@ -42,6 +44,11 @@ export function buildTodayTaskItems({
 
   for (const task of personalTasks) {
     add(task, "Personal", true);
+  }
+
+  for (const task of delegatedPersonalTasks) {
+    const owner = task.workspace.owner;
+    add(task, `From ${owner.name ?? owner.email}`, true);
   }
 
   for (const board of boardSummaries) {
