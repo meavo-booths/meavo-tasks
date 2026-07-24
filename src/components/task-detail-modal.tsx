@@ -26,6 +26,7 @@ import {
   useTaskDetails,
 } from "@/components/task-instructions-field";
 import { UserAvatar } from "@/components/user-avatar";
+import { TaskComments } from "@/components/task-comments";
 import { Button, Input, Select } from "@/components/ui";
 import { externalAssignees, memberAssignees } from "@/lib/task-assignees";
 import { PRIORITY_OPTIONS } from "@/lib/tasks-config";
@@ -459,6 +460,8 @@ export function TaskDetailModal({
           </>
         )}
       </div>
+
+      <TaskComments taskId={task.id} />
 
       <div className="mt-6 border-t border-slate-200 pt-4">
         <p className="mb-2 text-sm font-medium text-slate-700">Linked items</p>

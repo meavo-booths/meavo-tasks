@@ -29,6 +29,7 @@ Team task management for Meavo (`tasks.meavo.app`): a personal inbox grouped by 
 | Slack digests (team + personal crons) | `src/app/api/cron/*/route.ts`, `src/lib/integrations/slack.ts`, `src/lib/settings/personal-digest.ts` |
 | Todoist export, per-user settings | `src/app/actions/settings.ts`, `src/lib/settings/`, `src/lib/integrations/todoist.ts` |
 | Task detail modal | `src/components/task-detail-modal.tsx` |
+| Task comments (threads + resolve) | `src/components/task-comments.tsx`, `src/app/actions/comments.ts`, `src/lib/domain/task-comments.ts` |
 | Auth & access | `src/lib/access.ts` (tool-card gate), `src/lib/auth.ts`, `src/middleware.ts` |
 | DB schema | Owned by the **meavo-db** repo (consumed as `@meavo/db`); idempotent SQL copies in `scripts/*.sql` |
 | Tests | N/A — no test suite; verify manually with `npm run dev` |

@@ -143,6 +143,18 @@ async function main() {
       console.log("bootstrap-db: task user settings already present.");
     }
 
+    const commentsTable = await prisma.$queryRaw`
+      SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = 'TaskComment'
+      LIMIT 1
+    `;
+    if (!Array.isArray(commentsTable) || commentsTable.length === 0) {
+      console.log("bootstrap-db: applying task comments migration…");
+      await applySqlFile("scripts/add-task-comments.sql");
+    } else {
+      console.log("bootstrap-db: task comments already present.");
+    }
+
     console.log("bootstrap-db: seeding tool card and granting team access…");
     await seedToolCardAndAccess(prisma);
     console.log("bootstrap-db: done.");
